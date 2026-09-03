@@ -39,7 +39,7 @@ RUN pip install --no-deps -e .
 FROM python:3.12-slim
 
 # 系统库只装一个：
-#   libglib2.0-0 —— opencv-python-headless 的 wheel 里 cv2 会用到
+#   libglib2.0-0  opencv-python-headless 的 wheel 里 cv2 会用到
 #                   libgthread-2.0.so.0，slim 镜像默认不带。headless 版本不
 #                   含 GUI，所以 libGL / libgtk / libsm 一律不需要装；
 #                   Pillow 和 numpy 的 wheel 自带 zlib/libjpeg/libopenblas。
@@ -59,7 +59,7 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 # 数据目录挂到卷上：SQLite 订单库、credentials.json、收款码原图都在这里
-# （单独一条 ENV，不把注释塞进上面的续行里——各版本解析器对此的宽容度不一样）
+# （单独一条 ENV，不把注释塞进上面的续行里，各版本解析器对此的宽容度不一样）
 ENV CEXPAY_DATA_DIR=/data
 
 # 目录属主给 cexpay：docker 新建命名卷时会继承镜像里该目录的属主和权限，

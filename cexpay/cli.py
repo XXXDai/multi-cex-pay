@@ -336,9 +336,9 @@ def cmd_tx(args: argparse.Namespace) -> int:
 # webhook-test：给接入方本地调通验签用
 # --------------------------------------------------------------------------
 def cmd_webhook_test(args: argparse.Namespace) -> int:
-    """往指定 URL 发一条**签名正确**的假回调，让接入方能在本地把验签调通。
+    """往指定 URL 发一条签名正确的假回调，让接入方能在本地把验签调通。
 
-    不需要真的收到钱，也不用等交易所——这是接入过程中最费时间的一环。
+    不需要真的收到钱，也不用等交易所。
     """
     import time as _time
     import uuid as _uuid
@@ -350,7 +350,7 @@ def cmd_webhook_test(args: argparse.Namespace) -> int:
     if not secret:
         print(
             f"{YELLOW}没有配置回调密钥。{RESET}\n"
-            f"请设置 CEXPAY_WEBHOOK_SECRET 或用 --secret 传入——"
+            f"请设置 CEXPAY_WEBHOOK_SECRET 或用 --secret 传入，"
             f"否则发出去的请求不带签名，验签这一步就测不到。",
             file=sys.stderr,
         )
@@ -400,13 +400,13 @@ def cmd_webhook_test(args: argparse.Namespace) -> int:
     )
     print()
     if ok:
-        print(f"{GREEN}✓ 对方返回 {detail}{RESET} —— 2xx 即视为投递成功，不会重试。")
+        print(f"{GREEN}✓ 对方返回 {detail}{RESET}。2xx 即视为投递成功，不会重试。")
         return 0
 
     print(f"{RED}✗ {detail}{RESET}")
     print(
         f"{DIM}排查顺序：\n"
-        f"  1. 验签用的是**原始字节**吗？先 parse 再 stringify 一定对不上\n"
+        f"  1. 验签用的是原始字节吗？先 parse 再 stringify 一定对不上\n"
         f"  2. 两边的 CEXPAY_WEBHOOK_SECRET 是同一个吗？\n"
         f"  3. 被签名的是 f\"{{timestamp}}.{{raw_body}}\"，别漏掉那个点\n"
         f"  4. SDK 默认拒绝时间戳偏移超过 300s，服务器时间对得上吗？{RESET}"

@@ -39,7 +39,7 @@ PRODUCT = {"sku": "VPS-1C1G", "name": "VPS 1C1G 月付", "price": "9.9", "curren
 
 client = CexPayClient(GATEWAY_URL, webhook_secret=WEBHOOK_SECRET)
 
-# 演示用的「订单表」。生产上换成数据库，并且 order_id 上建唯一索引——
+# 演示用的「订单表」。生产上换成数据库，并且 order_id 上建唯一索引，
 # 回调可能重复到达，靠唯一索引 + 状态判断做幂等最省心。
 ORDERS: dict[str, dict] = {}
 LOCK = threading.Lock()
@@ -94,9 +94,9 @@ def buy():
 
 @app.post("/webhook")
 def webhook():
-    # 关键点一：验签必须用**原始字节**。
+    # 关键点一：验签必须用原始字节。
     # request.get_data() 拿的是未经解析的 body；千万不要用 request.json
-    # 再 json.dumps() 回去——键序、空格、Unicode 转义都会变，HMAC 必然不一致。
+    # 再 json.dumps() 回去：键序、空格、Unicode 转义都会变，HMAC 必然不一致。
     raw = request.get_data()
 
     try:

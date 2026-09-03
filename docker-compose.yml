@@ -43,8 +43,8 @@ services:
 
     # 只读根文件系统 + 显式可写目录，缩小被入侵后的可动范围。
     # /data 是命名卷（可写），其余全部只读；额外给出两个 tmpfs：
-    #   /tmp        —— uvicorn / Pillow 的临时文件
-    #   /home/cexpay —— 有些库会往 HOME 里写缓存，读不到写权限会直接抛异常
+    #   /tmp         uvicorn 和 Pillow 的临时文件
+    #   /home/cexpay 有些库会往 HOME 里写缓存，没有写权限会直接抛异常
     read_only: true
     tmpfs:
       - /tmp

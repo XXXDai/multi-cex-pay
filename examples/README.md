@@ -1,16 +1,16 @@
 # 示例
 
-按"从简到繁"排列。所有示例都不需要真实的交易所凭据也能跑起来看效果。
+按从简到繁排列。所有示例都不需要真实的交易所凭据也能跑起来看效果。
 
 | 文件 | 说明 | 需要凭据？ |
 |---|---|---|
-| [`aggregate_qr.py`](aggregate_qr.py) | 二维码全链路：截图 → 自动裁剪 → 聚合 → 回读校验 | ❌ |
-| [`quickstart.py`](quickstart.py) | 直接用 `cexpay` 包（不走 HTTP）：下单 → 轮询核销 → 打印结果 | 可选（`--demo` 用伪造进账） |
-| [`flask_shop.py`](flask_shop.py) | Flask 迷你商城，走 HTTP API + Python SDK，含 webhook 验签 | ✅ |
-| [`express_shop.mjs`](express_shop.mjs) | 同上的 Node 版本，用 Node SDK | ✅ |
-| [`webhook_receiver.php`](webhook_receiver.php) | 最小 PHP 回调端点 | ✅ |
+| [`aggregate_qr.py`](aggregate_qr.py) | 二维码全链路：截图、自动裁剪、聚合、回读校验 | 不需要 |
+| [`quickstart.py`](quickstart.py) | 直接用 `cexpay` 包（不走 HTTP）：下单、轮询核销、打印结果 | 可选（`--demo` 用伪造进账） |
+| [`flask_shop.py`](flask_shop.py) | Flask 迷你商城，走 HTTP API + Python SDK，含 webhook 验签 | 需要 |
+| [`express_shop.mjs`](express_shop.mjs) | 同上的 Node 版本，用 Node SDK | 需要 |
+| [`webhook_receiver.php`](webhook_receiver.php) | 最小 PHP 回调端点 | 需要 |
 
-## 先看二维码链路（不需要任何凭据）
+## 二维码链路（不需要凭据）
 
 造三张假的"App 收款页截图"，然后跑全链路：
 
@@ -33,9 +33,9 @@ PY
 .venv/bin/python examples/aggregate_qr.py /tmp/shots/bn.png /tmp/shots/okx.png /tmp/shots/bg.png
 ```
 
-会打印每张图识别出的品牌和内容、合成后的画布尺寸，以及**逐格回读校验**的结果。
+会打印每张图识别出的品牌和内容、合成后的画布尺寸，以及逐格回读校验的结果。
 
-## 再看核销链路（演示模式，不请求交易所）
+## 核销链路（演示模式，不请求交易所）
 
 ```bash
 .venv/bin/python examples/quickstart.py --amount 9.9 --demo
@@ -74,10 +74,10 @@ CEXPAY_WEBHOOK_SECRET=$CEXPAY_WEBHOOK_SECRET node express_shop.mjs
 CEXPAY_WEBHOOK_SECRET=$CEXPAY_WEBHOOK_SECRET php -S 127.0.0.1:8080 examples/webhook_receiver.php
 ```
 
-## 两条容易踩的坑
+## 容易踩的坑
 
-1. **验签必须用原始请求体。** 先 `json.parse` 再 `stringify` 会改变空格和键序，
+1. 验签必须用原始请求体。先 `json.parse` 再 `stringify` 会改变空格和键序，
    签名一定对不上。Flask 用 `request.get_data()`，Express 用 `express.raw()`，
    PHP 用 `php://input`。
-2. **回调处理必须对 `order_id` 幂等。** 网络抖动会导致同一笔回调投递多次，
+2. 回调处理必须对 `order_id` 幂等。网络抖动会导致同一笔回调投递多次，
    示例里都用一个 dict / map 做了去重演示，生产环境请落库并加唯一约束。

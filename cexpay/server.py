@@ -428,7 +428,7 @@ def create_app(*, start_poller: bool = True) -> FastAPI:
 
             放在根路径而不是 /static 下，是为了让接入方的 script 标签尽量短：
                 <script src="https://你的网关/embed.js"></script>
-            允许跨域缓存 —— 它是公开的前端资源，不含任何机密。
+            允许跨域缓存，它是公开的前端资源，不含任何机密。
             """
             return FileResponse(
                 WEB_DIR / "embed.js",
@@ -472,11 +472,11 @@ def _asset_fingerprint(rel: str, mtime_ns: int, size: int) -> str:
 def _page(name: str) -> Response:
     """返回一个 HTML 页面，并给它引用的静态资源打上内容指纹。
 
-    为什么要这么做：接入方的用户浏览器会缓存 checkout.js / app.css。
-    升级网关之后如果 URL 没变，他们可能几天都还在跑旧前端——
+    接入方的用户浏览器会缓存 checkout.js / app.css。
+    升级网关之后如果 URL 没变，他们可能几天都还在跑旧前端，
     这类 bug 极难排查（"我这边明明是好的，你清一下缓存试试"）。
 
-    指纹用的是**文件内容的哈希**而不是包版本号：
+    指纹用的是文件内容的哈希，而不是包版本号：
       - 发布时：内容变了指纹就变，缓存自然失效；
       - 开发时：改一行存盘，刷新就生效，不用手动 bump 版本、也不用硬刷新。
     HTML 自身走 no-cache，保证总能拿到最新的指纹。

@@ -35,7 +35,7 @@ def build_gateway(data_dir: str | None) -> PaymentGateway:
     """构造网关。
 
     注意：PaymentGateway() 不传 credentials 时会走 get_credential_store()，
-    而后者读的是**全局** Settings，不是这里传进去的这份。所以只要自定义了
+    而后者读的是全局 Settings，不是这里传进去的这份。所以只要自定义了
     data_dir，就必须把 CredentialStore 一起显式传进来，否则凭据会从默认
     目录读，行为和预期不一致。
     """
@@ -56,7 +56,7 @@ def describe_order(order) -> None:
     print(f"有效期      {left}s")
     print("─" * 62)
     print(
-        "为什么是「应付金额」而不是「下单金额」：T1 唯一金额匹配要求金额**完全相等**，\n"
+        "「应付金额」和「下单金额」的区别：T1 唯一金额匹配要求金额完全相等，\n"
         "系统给每笔订单分配了不同的 4 位小数后缀，靠这个后缀区分并发订单。\n"
         "用户少付超过 0.02 或多付超过 5 都不会自动核销。"
     )
@@ -86,7 +86,7 @@ def print_settlement(gateway: PaymentGateway, order_id: str) -> None:
 def install_demo_transaction(gateway: PaymentGateway, order, after_rounds: int = 2) -> None:
     """把 fetch_transactions 换成本地假数据，第 N 轮才「到账」。
 
-    生产代码永远不要这么做——这里只是为了在没有任何交易所凭据的机器上
+    生产代码永远不要这么做。这里只是为了在没有任何交易所凭据的机器上
     也能把 sweep() 的核销链路走一遍。
     """
     state = {"round": 0}
@@ -171,7 +171,7 @@ def main() -> int:
 
     if not configured and not args.demo:
         print()
-        print("下一步：配置一把**只读** API Key，然后重跑本脚本。")
+        print("下一步：配置一把只读 API Key，然后重跑本脚本。")
         print("  export CEXPAY_BINANCE_API_KEY=...   CEXPAY_BINANCE_API_SECRET=...")
         print("  export CEXPAY_OKX_API_KEY=...       CEXPAY_OKX_API_SECRET=...  CEXPAY_OKX_PASSPHRASE=...")
         print("  export CEXPAY_BITGET_API_KEY=...    CEXPAY_BITGET_API_SECRET=... CEXPAY_BITGET_PASSPHRASE=...")

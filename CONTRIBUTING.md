@@ -8,10 +8,10 @@ python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 ```
 
-跑测试。**不需要任何交易所凭据**——所有交易所交互在测试里都是假响应体：
+跑测试，不需要交易所凭据，所有交易所交互在测试里都是假响应体：
 
 ```bash
-.venv/bin/python -m pytest -q          # 207 passed
+.venv/bin/python -m pytest -q          # 254 passed
 .venv/bin/ruff check .
 ```
 
@@ -29,10 +29,10 @@ export CEXPAY_DATA_DIR=/tmp/cexpay-dev
 ## 代码风格
 
 - `ruff check .` 必须过，行宽 100。
-- **注释和文档用中文**，说明"为什么这么做"而不是"这行在做什么"。
+- 注释和文档用中文，说明"为什么这么做"而不是"这行在做什么"。
   代码里已有的注释就是标准，照着写。
 - 类型标注尽量给全，模块顶部统一 `from __future__ import annotations`。
-- 钱相关的数值**一律用 `Decimal`**，不要出现 `float`。金额在 HTTP 层用字符串传递。
+- 钱相关的数值一律用 `Decimal`，不要出现 `float`。金额在 HTTP 层用字符串传递。
 - 新功能要带测试。改了匹配逻辑、存储不变量、交易所解析这三块，
   没有测试的 PR 不会被合。
 
@@ -43,11 +43,11 @@ export CEXPAY_DATA_DIR=/tmp/cexpay-dev
 - [ ] 改了 SDK 的话，`tests/test_sdk_signature.py` 仍然通过（四种语言的签名口径必须一致）
 - [ ] 改了接口的话，`docs/api.md` 同步更新
 - [ ] 改了匹配逻辑的话，`docs/matching.md` 同步更新
-- [ ] **PR 里不含任何真实的 API Key、UID、收款码**。截图记得脱敏
+- [ ] PR 里不含任何真实的 API Key、UID、收款码，截图记得脱敏
 
 ## 如何新增一个交易所
 
-这是本项目最欢迎的贡献类型。整套架构就是为了让这件事只有四步。
+要改的地方就下面四处，架构是照着这件事设计的。
 
 ### 1. 写适配器
 
@@ -72,7 +72,7 @@ class GateAdapter(ExchangeAdapter):
           - 只返回成功状态、金额 > 0 的记录，支出和待确认要过滤掉
           - 时间戳统一用 to_ms() 转成整数毫秒
           - 金额统一用 to_decimal()，不要用 float
-          - tx_id 必须是该所稳定唯一的流水号——它是"一笔钱只核销一张单"的键
+          - tx_id 必须是该所稳定唯一的流水号，它是"一笔钱只核销一张单"的键
         """
 
     def check_permissions(self) -> PermissionReport:
@@ -94,9 +94,8 @@ class GateAdapter(ExchangeAdapter):
 签名逻辑写在适配器内部，HTTP 请求统一走基类的 `self._request()`
 （它已经处理了超时、非 200、非 JSON 这些情况）。
 
-> **踩坑提醒**：OKX 和 Bitget 的签名都要覆盖 query string，所以必须自己拼好
-> `request_path` 再签，且发出去的 URL 要和签名用的字节完全一致。
-> 参考 `okx.py` / `bitget.py` 里的 `_get()`。
+OKX 和 Bitget 的签名都要覆盖 query string，所以必须自己拼好 `request_path` 再签，
+发出去的 URL 要和签名用的字节完全一致。参考 `okx.py` / `bitget.py` 里的 `_get()`。
 
 ### 2. 注册
 
@@ -134,7 +133,7 @@ CREDENTIAL_FIELDS = {
 ### 4. 测试
 
 照着 `tests/test_exchanges.py` 的写法：用 `make()` 辅助函数把 `_request` 换成假实现，
-喂一段**真实抓下来的响应体**（记得脱敏），断言：
+喂一段真实抓下来的响应体（记得脱敏），断言：
 
 - 成功记录被正确解析（金额、时间、标识字段）
 - 支出 / 待确认 / 失败状态被过滤掉
@@ -151,8 +150,8 @@ CREDENTIAL_FIELDS = {
 
 - `cexpay --version` 和 Python 版本
 - 复现步骤
-- 相关日志（**先脱敏**：API Key、UID、收款码、付款方昵称都要去掉）
+- 相关日志，先脱敏，API Key、UID、收款码、付款方昵称都要去掉
 - 如果是"钱到账了但没核销"，先按 [docs/matching.md 的排查指南](docs/matching.md#排查指南钱到账了但订单没核销)
-  走一遍，并附上 `cexpay tx --minutes 60` 的**脱敏**输出和订单的 `pay_amount`
+  走一遍，并附上 `cexpay tx --minutes 60` 的脱敏输出和订单的 `pay_amount`
 
 **安全问题不要开公开 issue**，见 [SECURITY.md](SECURITY.md)。

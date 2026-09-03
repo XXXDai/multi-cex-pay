@@ -20,8 +20,8 @@
 | Base URL | `http://127.0.0.1:8787`（默认只听本机） |
 | 请求体 | `application/json`，除文件上传是 `multipart/form-data` |
 | 字符编码 | UTF-8 |
-| 金额 | **一律用字符串传递**，服务端用 `Decimal` 解析。别用浮点数 |
-| 时间 | Unix 毫秒整数（字段名以 `_ms` 结尾）；Webhook 头里的时间戳是**秒** |
+| 金额 | 一律用字符串传递，服务端用 `Decimal` 解析。别用浮点数 |
+| 时间 | Unix 毫秒整数（字段名以 `_ms` 结尾）；Webhook 头里的时间戳是秒 |
 
 ### 鉴权
 
@@ -32,8 +32,8 @@
 
 令牌比对用 `secrets.compare_digest`（定时安全）。
 
-> `CEXPAY_ADMIN_TOKEN` 未设置时，所有后台接口返回 **503**
-> `未设置 CEXPAY_ADMIN_TOKEN，后台接口已禁用`——这是刻意的，避免无令牌裸奔。
+`CEXPAY_ADMIN_TOKEN` 未设置时，所有后台接口返回 503 `未设置 CEXPAY_ADMIN_TOKEN，后台接口已禁用`。
+这是刻意的，避免无令牌裸奔。
 
 ### 错误体
 
@@ -73,7 +73,7 @@ curl -s http://127.0.0.1:8787/api/health
 }
 ```
 
-`exchanges` 是**凭据完整且启用中**的交易所；`poller` 为 `false` 说明
+`exchanges` 是凭据完整且启用中的交易所；`poller` 为 `false` 说明
 `CEXPAY_POLL_INTERVAL=0`，此时只能靠 `/check` 或后台 `/sweep` 手动核销。
 
 ---
@@ -116,15 +116,15 @@ curl -s http://127.0.0.1:8787/api/exchanges
 
 ### `POST /api/orders`
 
-创建订单。**返回 201。**
+创建订单，返回 201。
 
 | 参数 | 类型 | 必填 | 默认 | 说明 |
 |---|---|---|---|---|
-| `amount` | string | ✅ | — | 订单原价，必须 > 0。用字符串，如 `"9.9"` |
+| `amount` | string | 是 | 无 | 订单原价，必须 > 0。用字符串，如 `"9.9"` |
 | `exchange` | string \| null | | `null` | 限定只能用某一家付款；`null` = 任意已配置的交易所 |
 | `currency` | string | | `USDT` | 取 `CEXPAY_CURRENCY` |
-| `merchant_ref` | string | | — | 商户单号。**幂等键**，见下 |
-| `callback_url` | string | | — | 支付成功后回调的地址 |
+| `merchant_ref` | string | | 无 | 商户单号，同时是幂等键，见下 |
+| `callback_url` | string | | 无 | 支付成功后回调的地址 |
 | `ttl_s` | int | | `1800` | 有效期秒数，`60 ≤ ttl_s ≤ 86400` |
 | `metadata` | object | | `{}` | 原样存回、原样回调，放你自己的业务字段 |
 
@@ -156,14 +156,14 @@ curl -s -X POST http://127.0.0.1:8787/api/orders \
 }
 ```
 
-> **`pay_amount` 才是要让用户付的金额**，不是 `base_amount`。尾数是这笔订单的指纹，
-> 少一分都不会自动核销。详见 [matching.md](matching.md#t1-唯一金额)。
+**`pay_amount` 才是要让用户付的金额**，不是 `base_amount`。尾数是这笔订单的指纹，
+少一分都不会自动核销。详见 [matching.md](matching.md#t1-唯一金额)。
 
-**幂等：** 带同一个 `merchant_ref` 重复请求，如果上一单还是 `pending` 且没过期，
-会**返回同一张订单**（同一个 `order_id`、同一个 `pay_amount`），不会新建。
+幂等：带同一个 `merchant_ref` 重复请求，如果上一单还是 `pending` 且没过期，
+会返回同一张订单（同一个 `order_id`、同一个 `pay_amount`），不会新建。
 上一单已支付/过期/取消后，同一个 `merchant_ref` 会开出新单。
 
-**错误：**
+错误：
 
 | 情况 | 状态码 | detail |
 |---|---|---|
@@ -191,27 +191,27 @@ curl -s http://127.0.0.1:8787/api/orders/6dbd97a2192047499bd0
 
 ### `POST /api/orders/{order_id}/identifier`
 
-用户在收银台补填付款方标识（T3）。提交后会**立刻跑一次核销**，所以这个接口的返回
-里就可能已经是 `paid` 了。
+用户在收银台补填付款方标识（T3）。提交后立刻跑一次核销，所以这个接口的返回里
+就可能已经是 `paid` 了。
 
 | 参数 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `kind` | string | ✅ | `payer_name` / `payer_uid_last3` / `withdraw_id_last3` |
-| `value` | string | ✅ | `*_last3` 必须是 3 位数字；`payer_name` 最长 64 字符 |
+| `kind` | string | 是 | `payer_name` / `payer_uid_last3` / `withdraw_id_last3` |
+| `value` | string | 是 | `*_last3` 必须是 3 位数字；`payer_name` 最长 64 字符 |
 
 ```bash
 curl -s -X POST http://127.0.0.1:8787/api/orders/6dbd97a2192047499bd0/identifier \
   -H 'Content-Type: application/json' -d '{"kind":"payer_uid_last3","value":"165"}'
 ```
 
-**错误：** `400 请填写 3 位数字` / `400 未知的标识类型：xxx` /
+错误：`400 请填写 3 位数字` / `400 未知的标识类型：xxx` /
 `400 订单当前状态为 paid，无法提交标识`。
 
 ---
 
 ### `POST /api/orders/{order_id}/check`
 
-用户点「我已支付」时调。**同步**拉一次各所进账并尝试核销，然后返回结果。
+用户点「我已支付」时调。同步拉一次各所进账并尝试核销，然后返回结果。
 
 ```bash
 curl -s -X POST http://127.0.0.1:8787/api/orders/6dbd97a2192047499bd0/check
@@ -226,10 +226,10 @@ curl -s -X POST http://127.0.0.1:8787/api/orders/6dbd97a2192047499bd0/check
 }
 ```
 
-`scanned` 是本次从各所拉到的进账条数，`errors` 是失败的交易所的错误描述
-（**单家失败不影响其它家**，所以 `errors` 非空时 `is_paid` 仍可能为 `true`）。
+`scanned` 是本次从各所拉到的进账条数，`errors` 是失败的交易所的错误描述。
+单家失败不影响其它家，所以 `errors` 非空时 `is_paid` 仍可能为 `true`。
 
-> 每次调用都会打三家交易所的 API。前面务必做限流，否则容易触发交易所的频率限制。
+每次调用都会打三家交易所的 API。前面要做限流，否则容易触发交易所的频率限制。
 
 ---
 
@@ -246,7 +246,7 @@ curl -s -X POST http://127.0.0.1:8787/api/orders/6dbd97a2192047499bd0/check
 
 | 查询参数 | 默认 | 说明 |
 |---|---|---|
-| `exchange` | 订单的 `exchange` | 指定某一家的单码；都为空时返回**聚合图** |
+| `exchange` | 订单的 `exchange` | 指定某一家的单码；都为空时返回聚合图 |
 | `layout` | `row` | `row` / `column` / `grid`，只在聚合时生效 |
 | `size` | `520` | 每个码的边长，`200 ≤ size ≤ 1200` |
 
@@ -255,7 +255,7 @@ curl -s 'http://127.0.0.1:8787/api/orders/6dbd.../qr.png?exchange=binance' -o bn
 curl -s 'http://127.0.0.1:8787/api/orders/6dbd.../qr.png?layout=row&size=460' -o all.png
 ```
 
-**错误：** `404 binance 还没有配置收款码` / `404 还没有配置任何收款码，请先在 /admin 上传`。
+错误：`404 binance 还没有配置收款码` / `404 还没有配置任何收款码，请先在 /admin 上传`。
 
 ---
 
@@ -273,7 +273,7 @@ curl -s 'http://127.0.0.1:8787/api/orders/6dbd.../qr.png?layout=row&size=460' -o
 curl -s 'http://127.0.0.1:8787/api/qr/aggregate.png?layout=grid&size=420' -o agg.png
 ```
 
-> 这个路由每次请求都要重新合成图片。对外暴露时建议在反向代理上加缓存。
+这个路由每次请求都要重新合成图片。对外暴露时建议在反向代理上加缓存。
 
 ---
 
@@ -283,7 +283,7 @@ curl -s 'http://127.0.0.1:8787/api/qr/aggregate.png?layout=grid&size=420' -o agg
 
 ### `GET /api/admin/credentials`
 
-列出三家的凭据状态。**密钥一律脱敏**（`abcd******wxyz`），原文不会出现在任何响应里。
+列出三家的凭据状态。密钥一律脱敏（`abcd******wxyz`），原文不会出现在任何响应里。
 
 ```json
 {
@@ -309,7 +309,7 @@ curl -s 'http://127.0.0.1:8787/api/qr/aggregate.png?layout=grid&size=420' -o agg
 
 ### `PUT /api/admin/credentials/{exchange}`
 
-写入凭据。**只传要改的字段**——省略的字段保持原值，所以改 `account_label` 不用重填密钥。
+写入凭据。只传要改的字段，省略的字段保持原值，所以改 `account_label` 不用重填密钥。
 
 | 参数 | 说明 |
 |---|---|
@@ -333,11 +333,11 @@ curl -s -X PUT http://127.0.0.1:8787/api/admin/credentials/okx \
 
 ### `DELETE /api/admin/credentials/{exchange}`
 
-删除该交易所的凭据。→ `{"ok": true}`
+删除该交易所的凭据，返回 `{"ok": true}`。
 
 ### `POST /api/admin/credentials/test`
 
-连通性 + **只读权限自检**。不带参数则检查全部。
+连通性和只读权限自检。不带参数则检查全部。
 
 ```bash
 curl -s -X POST 'http://127.0.0.1:8787/api/admin/credentials/test?exchange=binance' \
@@ -363,20 +363,20 @@ curl -s -X POST 'http://127.0.0.1:8787/api/admin/credentials/test?exchange=binan
 | `ok` | `read_only` | 含义 |
 |---|---|---|
 | `true` | `true` | 确认是只读 Key |
-| `true` | `false` | **确认带写权限**，`detail` 会列出具体是哪些。`CEXPAY_ENFORCE_READONLY=true`（默认）时服务拒绝启动 |
-| `true` | `null` | 接口没返回权限字段，**无法判定**，请自行确认 |
+| `true` | `false` | 确认带写权限，`detail` 会列出具体是哪些。`CEXPAY_ENFORCE_READONLY=true`（默认）时服务拒绝启动 |
+| `true` | `null` | 接口没返回权限字段，无法判定，请自行确认 |
 | `false` | `null` | 连不上或签名错，`detail` 是原始错误 |
 
 ### `POST /api/admin/qr/compose`
 
-生成聚合图，落盘到 `<DATA_DIR>/qr/aggregate.png`，并做**回读校验**。
+生成聚合图，落盘到 `<DATA_DIR>/qr/aggregate.png`，并做回读校验。
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
 | `exchanges` | 全部 | 数组，如 `["binance","okx"]` |
 | `layout` | `row` | `row` / `column` / `grid` |
 | `qr_size` | `520` | `200 ≤ qr_size ≤ 1200` |
-| `gutter_ratio` | `0.45` | 格间距 / 码宽。**低于 0.3 会告警**，扫码容易串格 |
+| `gutter_ratio` | `0.45` | 格间距 / 码宽。低于 0.3 会告警，扫码容易串格 |
 | `title` | `扫码支付 · 任选一家` | 顶部标题 |
 | `footnote` | 见默认 | 底部小字 |
 
@@ -398,19 +398,19 @@ curl -s -X POST http://127.0.0.1:8787/api/admin/qr/compose \
 }
 ```
 
-`verified` 是逐格回读结果——把成图重新解一遍，确认每个码还能扫出且内容没变。
-**某格 `false` 说明这个尺寸下它扫不出来**，调大 `qr_size` 或改用单码模式。
+`verified` 是逐格回读结果：把成图重新解一遍，确认每个码还能扫出且内容没变。
+某格是 `false` 说明这个尺寸下它扫不出来，调大 `qr_size` 或改用单码模式。
 `missing` 是已配凭据但没上传收款码的交易所。
 
 `400 没有可用的收款码，请先在后台上传各交易所的二维码`。
 
 ### `POST /api/admin/qr/{exchange}`
 
-上传收款码截图，自动识别 → 透视校正 → 重绘 → 落盘。`multipart/form-data`。
+上传收款码截图，自动识别、透视校正、重绘，然后落盘。`multipart/form-data`。
 
 | 字段 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `file` | file | ✅ | 收款页截图，整张丢进来即可 |
+| `file` | file | 是 | 收款页截图，整张丢进来即可 |
 | `regenerate` | bool | `true` | 按解出的内容重绘标准码；`false` 则做像素级透视裁剪 |
 | `size` | int | `640` | 输出边长 |
 
@@ -440,11 +440,11 @@ curl -s -X POST http://127.0.0.1:8787/api/admin/qr/binance \
 }
 ```
 
-`brand` 是从二维码内容反推出的归属。**传错所会在 `warnings` 里明确提示**
-（`注意：这张码看起来是 bitget 的，但你把它配置到了 okx`），但仍会保存——
+`brand` 是从二维码内容反推出的归属。传错所会在 `warnings` 里提示
+（`注意：这张码看起来是 bitget 的，但你把它配置到了 okx`），但仍会保存，
 是否更正由你决定。
 
-**错误：** `400 上传的文件是空的` / `400 没有在图片里识别到二维码…` /
+错误：`400 上传的文件是空的` / `400 没有在图片里识别到二维码…` /
 `404 不支持的交易所：xxx`。
 
 ### `POST /api/admin/qr/{exchange}/preview`
@@ -467,8 +467,8 @@ curl -s -X POST http://127.0.0.1:8787/api/admin/qr/binance \
 | `limit` | `50` | `1 ≤ limit ≤ 500` |
 | `offset` | `0` | 翻页 |
 
-返回的订单是**内部视图**，比公开视图多 `identifier_kind` / `identifier_value` /
-`callback_url` / `callback_state` / `callback_attempts` 四组字段。
+返回的订单是内部视图，比公开视图多 `identifier_kind` / `identifier_value` /
+`callback_url` / `callback_state` / `callback_attempts` 这些字段。
 
 ```json
 {
@@ -484,16 +484,16 @@ curl -s -X POST http://127.0.0.1:8787/api/admin/qr/binance \
 
 ### `POST /api/admin/orders/{order_id}/settle`
 
-人工核销（T4）。`tx_id` 会写进 `settled_tx`，所以**同一笔流水不能核销两张单**——
-这是防止手动操作串单的护栏。
+人工核销（T4）。`tx_id` 会写进 `settled_tx`，同一笔流水不能核销两张单，
+防止手动操作串单。
 
 | 参数 | 必填 | 说明 |
 |---|---|---|
-| `exchange` | ✅ | `binance` / `okx` / `bitget` |
-| `tx_id` | ✅ | 交易所那边的流水号 / 订单号 |
+| `exchange` | 是 | `binance` / `okx` / `bitget` |
+| `tx_id` | 是 | 交易所那边的流水号 / 订单号 |
 | `note` | | 备注，会写进 `match_reason` |
 
-**错误：** `400 核销失败：流水 XXX 已被订单 YYY 使用` /
+错误：`400 核销失败：流水 XXX 已被订单 YYY 使用` /
 `400 订单当前状态为 paid，无法人工核销`。
 
 ### `POST /api/admin/sweep`
@@ -508,7 +508,7 @@ curl -s -X POST http://127.0.0.1:8787/api/admin/qr/binance \
 
 ### `GET /api/admin/transactions`
 
-**排查「钱到账了但订单没核销」的主要工具**：直接看各所 API 返回了什么。
+返回各所 API 拉到的原始进账记录。「钱到账了但订单没核销」的时候先看这里。
 
 | 查询参数 | 默认 | 说明 |
 |---|---|---|
@@ -538,8 +538,8 @@ curl -s 'http://127.0.0.1:8787/api/admin/transactions?minutes=60' \
 }
 ```
 
-按时间倒序。把这里的 `amount` 和订单的 `pay_amount` 对一下，通常一眼就知道
-是金额不对、时间超窗，还是压根没拉到记录。
+按时间倒序。把这里的 `amount` 和订单的 `pay_amount` 对一下，就知道是金额不对、
+时间超窗，还是根本没拉到记录。
 
 ---
 
@@ -551,7 +551,7 @@ curl -s 'http://127.0.0.1:8787/api/admin/transactions?minutes=60' \
 | `merchant_ref` | string \| null | 商户单号 |
 | `exchange` | string \| null | 限定的交易所；`null` = 任意 |
 | `base_amount` | string | 下单原价 |
-| `pay_amount` | string | **实际要付的金额**（带唯一尾数） |
+| `pay_amount` | string | 实际要付的金额（带唯一尾数） |
 | `currency` | string | 默认 `USDT` |
 | `status` | string | `pending` / `paid` / `expired` / `cancelled` |
 | `memo` | string \| null | 6 位备注码（T2 用，只有 Binance 读得到） |
@@ -560,7 +560,7 @@ curl -s 'http://127.0.0.1:8787/api/admin/transactions?minutes=60' \
 | `expires_in_s` | int | 剩余秒数，实时算出，已过期为 `0` |
 | `paid_ms` | int \| null | 核销时间 |
 | `metadata` | object | 你自己塞的东西 |
-| `settlement` | object | **仅 `status=paid` 时出现**，见下 |
+| `settlement` | object | 仅 `status=paid` 时出现，见下 |
 
 `settlement`：
 
@@ -627,21 +627,21 @@ f"{X-CexPay-Timestamp}.{原始请求体}"
 
 签名 = `hex(HMAC-SHA256(CEXPAY_WEBHOOK_SECRET, 上面那个字符串))`。
 
-> **必须用原始字节验签。** 先 `json.parse` 再 `stringify` 会改变空格和键序，签名必然对不上。
+**必须用原始字节验签。** 先 `json.parse` 再 `stringify` 会改变空格和键序，签名必然对不上。
 
 | 语言 | 现成实现 |
 |---|---|
-| Python | [`sdk/python/cexpay_client.py`](../sdk/python/cexpay_client.py) → `verify_webhook()` |
-| Node | [`sdk/node/cexpay.mjs`](../sdk/node/cexpay.mjs) → `verifyWebhook()` |
-| PHP | [`sdk/php/CexPayClient.php`](../sdk/php/CexPayClient.php) → `verifyWebhook()` |
-| Go | [`sdk/go/cexpay.go`](../sdk/go/cexpay.go) → `VerifyWebhook()` / `ParseWebhook()` |
+| Python | [`sdk/python/cexpay_client.py`](../sdk/python/cexpay_client.py) 的 `verify_webhook()` |
+| Node | [`sdk/node/cexpay.mjs`](../sdk/node/cexpay.mjs) 的 `verifyWebhook()` |
+| PHP | [`sdk/php/CexPayClient.php`](../sdk/php/CexPayClient.php) 的 `verifyWebhook()` |
+| Go | [`sdk/go/cexpay.go`](../sdk/go/cexpay.go) 的 `VerifyWebhook()` / `ParseWebhook()` |
 
 四个实现的签名口径由 [`tests/test_sdk_signature.py`](../tests/test_sdk_signature.py)
 跨语言对齐，任何一边改坏了 CI 都会红。SDK 默认还会校验时间戳偏移 ≤ 300s 来防重放。
 
 ### 重试
 
-返回 **2xx 即视为成功**，其余（含超时、连接失败）按固定阶梯重试：
+返回 2xx 即视为成功，其余（含超时、连接失败）按固定阶梯重试：
 
 | 第几次失败后 | 等待 |
 |---|---|
@@ -655,7 +655,7 @@ f"{X-CexPay-Timestamp}.{原始请求体}"
 
 7 次都失败后 `callback_state` 置为 `failed`，不再重试（可在后台看到）。
 
-> **你的处理必须对 `order_id` 幂等。** 网络抖动会导致同一笔回调投递多次。
+**你的处理必须对 `order_id` 幂等。** 网络抖动会导致同一笔回调投递多次。
 
 ---
 
@@ -678,7 +678,7 @@ stateDiagram-v2
     end note
 ```
 
-`paid` / `expired` / `cancelled` 都是终态。过期订单**不会**再被核销——
+`paid` / `expired` / `cancelled` 都是终态。过期订单不会再被核销。
 用户过期后才付款属于人工处理范畴，见 [FAQ](faq.md)。
 
 ---
@@ -690,7 +690,7 @@ stateDiagram-v2
 | 订单有效期 | 1800s | `CEXPAY_ORDER_TTL` |
 | 唯一金额小数位 | 4（同价位并发 9999 单） | `CEXPAY_UNIQUE_AMOUNT_DECIMALS` |
 | 唯一金额冷却 | 86400s | `CEXPAY_AMOUNT_COOLDOWN` |
-| 单次拉取每所条数 | 100（**不翻页**） | — |
+| 单次拉取每所条数 | 100（不翻页） | 无 |
 | 轮询间隔 | 20s，`0` 关闭 | `CEXPAY_POLL_INTERVAL` |
 | 交易所请求超时 | 15s | `CEXPAY_HTTP_TIMEOUT` |
 | 时间窗 | 前 1800s / 后 3600s | `CEXPAY_WINDOW_BEFORE` / `_AFTER` |

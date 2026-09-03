@@ -74,7 +74,7 @@
     <h2>聚合收款图</h2>
     <p class="hint">
       三家的码拼成一张，用户用哪家 App 就扫对应那一格。二维码内容是各所专属 URL，
-      <strong>不存在三家通吃的万能码</strong>——这里是视觉聚合。
+      <strong>不存在三家通吃的万能码</strong>，这里是视觉聚合。
       公开链接：<code id="aggUrl">/api/qr/aggregate.png</code>
     </p>
     <div class="agg-preview" style="margin-top:12px">
@@ -125,7 +125,7 @@
       key: "embed",
       title: "① 嵌入式弹窗",
       sub: "一行 script，不碰后端",
-      note: "订单应在你自己的后端创建，浏览器只拿 order_id —— 否则金额可被用户篡改。发货请以 Webhook 为准，onPaid 跑在浏览器里，可以被伪造。",
+      note: "订单应在你自己的后端创建，浏览器只拿 order_id，否则金额可被用户篡改。发货请以 Webhook 为准，onPaid 跑在浏览器里，可以被伪造。",
       code: () => `<script src="${ORIGIN}/embed.js"><\/script>
 
 <button id="pay">USDT 支付</button>
@@ -146,7 +146,7 @@ document.getElementById('pay').onclick = async () => {
       key: "server",
       title: "② 服务端 API",
       sub: "下单 + 收回调",
-      note: "pay_amount 才是要让用户付的金额，不是 amount —— 尾数是这笔订单的指纹。带同一个 merchant_ref 重复下单会返回同一张订单，天然幂等。",
+      note: "pay_amount 才是要让用户付的金额，不是 amount，尾数是这笔订单的指纹。带同一个 merchant_ref 重复下单会返回同一张订单，天然幂等。",
       code: () => `# 1) 下单
 curl -X POST ${ORIGIN}/api/orders \\
   -H 'Content-Type: application/json' \\

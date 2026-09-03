@@ -4,16 +4,16 @@
 
 | 版本 | 状态 |
 |---|---|
-| `0.1.x` | ✅ 接受安全修复 |
-| `< 0.1` | ❌ 不支持 |
+| `0.1.x` | 接受安全修复 |
+| `< 0.1` | 不支持 |
 
 项目还在 0.x 阶段，安全修复只发布在最新的 minor 版本上。
 
 ## 报告漏洞
 
-**请不要通过公开 issue 报告安全问题。**
+不要通过公开 issue 报告安全问题。
 
-优先使用 GitHub 的私有报告通道：仓库 → **Security** → **Report a vulnerability**
+优先用 GitHub 的私有报告通道：仓库的 Security 标签里选 Report a vulnerability
 （Private vulnerability reporting）。这样讨论过程只有维护者可见。
 
 报告里请尽量包含：
@@ -23,7 +23,7 @@
 - 受影响的版本和部署形态（直接跑 / Docker / 有无反向代理）
 - 你认为的修复方向（可选）
 
-**请不要在报告里附带真实的 API Key、Secret、Passphrase 或收款码。**
+不要在报告里附带真实的 API Key、Secret、Passphrase 或收款码。
 如果漏洞涉及凭据泄露，描述路径即可，不需要提供真实凭据。
 
 ## 响应时间
@@ -50,17 +50,17 @@
 
 ### 不在范围内
 
-以下是**已知且已在文档里说明的设计边界**，不算漏洞（欢迎提 PR 改进，但请走普通 issue）：
+以下是已知的设计边界，文档里都写了，不算漏洞。欢迎提 PR 改进，走普通 issue：
 
-- 公开接口没有内置限流 —— 见 [docs/security.md](docs/security.md#部署加固清单)，
-  预期在反向代理层解决
-- `CORS: *` —— 管理接口靠 Bearer Token 保护，浏览器不会自动携带
-- `callback_url` 没有出站白名单（SSRF）—— 文档明确要求 `callback_url` 由商户后端写死
+- 公开接口没有内置限流，预期在反向代理层解决，见
+  [docs/security.md](docs/security.md#部署加固清单)
+- `CORS: *`，管理接口靠 Bearer Token 保护，浏览器不会自动携带
+- `callback_url` 没有出站白名单（SSRF），文档要求 `callback_url` 由商户后端写死
 - 把服务直接暴露在公网且不设 `CEXPAY_ADMIN_TOKEN` 导致的后果
 - 设置 `CEXPAY_ENFORCE_READONLY=false` 后用带提币权限的 Key 导致的后果
-- 交易所侧的账号风控 / 封号 —— 见 [docs/security.md](docs/security.md#合规与账号风险)
+- 交易所侧的账号风控和封号，见 [docs/security.md](docs/security.md#合规与账号风险)
 
 ## 使用者自查
 
 上线前请过一遍 [docs/security.md 的部署加固清单](docs/security.md#部署加固清单)。
-最关键的三条：**Key 只给读权限**、**绑 IP 白名单**、**后台不要暴露在公网**。
+最关键的三条：Key 只给读权限、绑 IP 白名单、后台不要暴露在公网。

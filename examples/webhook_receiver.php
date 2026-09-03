@@ -41,7 +41,7 @@ if ($secret === '') {
 
 // 关键点一：必须用 php://input 的原始字节。
 // 不要用 $_POST（那只解析表单编码），也不要 json_decode 后再 json_encode
-// 回去——键序、空格、Unicode 转义都会变，HMAC 必然对不上。
+// 回去：键序、空格、Unicode 转义都会变，HMAC 必然对不上。
 $raw = file_get_contents('php://input');
 if ($raw === false || $raw === '') {
     respond(400, ['error' => 'empty body']);

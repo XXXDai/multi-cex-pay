@@ -36,7 +36,7 @@ const PRODUCT = { sku: "VPS-1C1G", name: "VPS 1C1G 月付", price: "9.9", curren
 
 const client = new CexPayClient(GATEWAY_URL, { webhookSecret: WEBHOOK_SECRET });
 
-// 演示用的「订单表」。生产上换成数据库，并且在 order_id 上建唯一索引——
+// 演示用的「订单表」。生产上换成数据库，并且在 order_id 上建唯一索引，
 // 回调可能重复到达，靠唯一索引 + 状态判断做幂等最省心。
 const ORDERS = new Map();
 let seq = 1000;

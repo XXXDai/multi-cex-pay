@@ -141,7 +141,7 @@ def string_similarity(a: str, b: str) -> float:
 
     score = max(scores)
     # 名字本身太短时信息量不足，无论算出多高都不给满分。
-    # 这里量的是脱敏前的长度——"张*丰" 有 3 个字符位，"张*" 只有 2 个。
+    # 这里量的是脱敏前的长度："张*丰" 有 3 个字符位，"张*" 只有 2 个。
     if min(len(a), len(b)) < MIN_CONFIDENT_CHARS:
         score = min(score, SHORT_NAME_SCORE_CAP)
     return score

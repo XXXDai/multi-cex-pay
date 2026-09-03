@@ -1,15 +1,15 @@
 # 接入指南
 
-从零到收到第一笔钱。**挑一种接法就行，不用全看。**
+从零到收到第一笔钱。挑一种接法就行，不用全看。
 
 | 你的情况 | 用哪种 | 改动量 |
 |---|---|---|
-| 有个网页，想加个「USDT 支付」按钮 | [① 嵌入式弹窗](#-嵌入式弹窗最省事) | 一行 `<script>` |
-| 有后端，想完全控制流程 | [② 服务端 API](#-服务端-api标准做法) | 两个接口 |
-| 只想要金额和二维码，UI 自己画 | [③ 纯数据模式](#-纯数据模式ui-全自己画) | 一个接口 |
-| 不是 Web，比如 Telegram Bot / 桌面端 | [③ 纯数据模式](#-纯数据模式ui-全自己画) | 一个接口 |
+| 有个网页，想加个「USDT 支付」按钮 | [嵌入式弹窗](#嵌入式弹窗) | 一行 `<script>` |
+| 有后端，想完全控制流程 | [服务端 API](#服务端-api) | 两个接口 |
+| 只想要金额和二维码，UI 自己画 | [纯数据模式](#纯数据模式) | 一个接口 |
+| 不是 Web，比如 Telegram Bot / 桌面端 | [纯数据模式](#纯数据模式) | 一个接口 |
 
-三种接法共用同一套订单和核销逻辑，**随时可以换**。
+三种接法共用同一套订单和核销逻辑，随时可以换。
 
 ---
 
@@ -35,7 +35,7 @@ export CEXPAY_WEBHOOK_SECRET=$(openssl rand -hex 24)
 
 ---
 
-## ① 嵌入式弹窗（最省事）
+## 嵌入式弹窗
 
 一行 script，一个函数调用，不用碰后端。
 
@@ -46,7 +46,7 @@ export CEXPAY_WEBHOOK_SECRET=$(openssl rand -hex 24)
 
 <script>
 document.getElementById('pay').onclick = async () => {
-  // 订单在你自己的后端创建，浏览器只拿 order_id —— 金额不可被篡改
+  // 订单在你自己的后端创建，浏览器只拿 order_id，金额不可被篡改
   const { order_id } = await fetch('/my-api/create-order', { method: 'POST' })
     .then(r => r.json());
 
@@ -62,20 +62,20 @@ document.getElementById('pay').onclick = async () => {
 弹窗会自己处理：选交易所、显示金额和二维码、倒计时、轮询状态、支付成功后关闭。
 高度跟随内容自适应，窄屏自动切成单码大图。
 
-### 快速试用（金额从前端传）
+### 金额从前端传
 
 ```js
 CexPay.open({ amount: '9.9', onPaid: o => console.log(o) });
 ```
 
-> ⚠️ 这样金额由浏览器决定，用户改一下就能 1 分钱买走你的东西。
-> **只适合内部工具、演示、或金额本来就无所谓的场景。** 对外一定用 `orderId`。
+> 这样金额由浏览器决定，用户改一下就能 1 分钱买走你的东西。
+> 只适合内部工具、演示、或金额本来就无所谓的场景。对外一定用 `orderId`。
 
 ### `CexPay.open(opts)` 参数
 
 | 参数 | 说明 |
 |---|---|
-| `orderId` | 服务端已创建的订单号（**推荐**） |
+| `orderId` | 服务端已创建的订单号（推荐） |
 | `amount` | 或直接给金额，由浏览器下单（不可信） |
 | `exchange` | 限定只能用某一家付款，留空 = 任意 |
 | `ref` | 商户单号，同一个 `ref` 会复用未过期的待付订单（幂等） |
@@ -96,9 +96,9 @@ CexPay.open({ amount: '9.9', onPaid: o => console.log(o) });
 
 ---
 
-## ② 服务端 API（标准做法）
+## 服务端 API
 
-两步：下单 → 收回调。
+分两步：下单，然后收回调。
 
 ### 下单
 
@@ -121,15 +121,15 @@ curl -X POST https://你的网关/api/orders \
 }
 ```
 
-把用户跳转到 `checkout_url`（拼上网关域名），或者用 ① 的弹窗打开。
+把用户跳转到 `checkout_url`（拼上网关域名），或者用[嵌入式弹窗](#嵌入式弹窗)打开。
 
-- **`pay_amount` 才是要让用户付的金额**，不是 `amount`。尾数是订单指纹。
-- 带同一个 `merchant_ref` 重复下单会返回同一张订单，**天然幂等**，不用自己去重。
+- **要让用户付的是 `pay_amount`，不是 `amount`**。尾数是订单指纹。
+- 带同一个 `merchant_ref` 重复下单会返回同一张订单，幂等，不用自己去重。
 - `metadata` 原样存、原样回调，放你的业务字段。
 
 ### 收回调
 
-服务端收到 `order.paid` → 验签 → 按 `order_id` 幂等发货。
+服务端收到 `order.paid` 后先验签，再按 `order_id` 幂等发货。
 
 <details open>
 <summary><b>Python / Flask</b></summary>
@@ -213,9 +213,9 @@ http.HandleFunc("/webhook", func(w http.ResponseWriter, r *http.Request) {
 ```
 </details>
 
-### 本地就能把验签调通
+### 本地调验签
 
-不用等真有人付款——发一条**签名正确的假回调**给自己：
+不用等真有人付款，发一条签名正确的假回调给自己：
 
 ```bash
 cexpay webhook-test http://127.0.0.1:5000/webhook
@@ -227,7 +227,7 @@ X-CexPay-Timestamp: 1788450796
 X-CexPay-Signature: a6d1003eec114248c060309027380…
 被签名的字符串: 1788450796.<原始请求体>
 
-✓ 对方返回 HTTP 200 —— 2xx 即视为投递成功，不会重试。
+✓ 对方返回 HTTP 200。2xx 即视为投递成功，不会重试。
 ```
 
 失败时会直接给出排查顺序。测幂等就固定订单号发两次：
@@ -239,7 +239,7 @@ cexpay webhook-test http://127.0.0.1:5000/webhook --order-id SAME-ORDER
 
 ---
 
-## ③ 纯数据模式（UI 全自己画）
+## 纯数据模式
 
 不用收银台页面，只要数据。适合 Telegram Bot、桌面端、小程序、或者你有自己的设计。
 
@@ -259,7 +259,7 @@ curl -s https://你的网关/api/exchanges
 curl -s https://你的网关/api/orders/<order_id>
 ```
 
-Python SDK 里有个阻塞等待，写脚本很方便：
+Python SDK 里有个阻塞等待，写脚本用得上：
 
 ```python
 order = client.create_order("9.9")["order"]
@@ -289,12 +289,12 @@ cexpay openapi -o openapi.json
 | 成功 | 返回 2xx |
 | 重试 | 0s / 15s / 1m / 5m / 30m / 2h / 6h，共 7 次 |
 
-### 三条铁律
+### 注意
 
-1. **用原始字节验签。** 先 `json.parse` 再 `stringify` 会改动空格和键序，签名必然对不上。
+1. 用原始字节验签。先 `json.parse` 再 `stringify` 会改动空格和键序，签名必然对不上。
    这是接入时最常见的坑。
-2. **按 `order_id` 幂等。** 网络抖动会导致同一笔回调投递多次。
-3. **发货只认 Webhook。** 浏览器里的 `onPaid` 可以被伪造。
+2. 按 `order_id` 幂等。网络抖动会导致同一笔回调投递多次。
+3. 发货只认 Webhook。浏览器里的 `onPaid` 可以被伪造。
 
 四种语言的验签实现都在 [`sdk/`](../sdk/)，零第三方依赖，单文件拷走即用。
 它们的签名口径由 [`tests/test_sdk_signature.py`](../tests/test_sdk_signature.py) 跨语言对齐。
@@ -303,25 +303,31 @@ cexpay openapi -o openapi.json
 
 ## 常见问题
 
-**用户付了钱但订单没核销。**
+### 用户付了钱但订单没核销
+
 先看后台的「最近进账」或 `cexpay tx --minutes 60`，把交易所返回的金额和订单的
 `pay_amount` 对一下。九成是金额不对（用户手输时抹掉了小数）或超了时间窗。
 完整排查步骤见 [matching.md](matching.md#排查指南钱到账了但订单没核销)。
 
-**能不能不改金额？**
+### 能不能不改金额
+
 可以，`CEXPAY_UNIQUE_AMOUNT=false`。代价是必须让用户在收银台补填付款方标识
 （昵称 / UID 后三位），成功率和体验都会下降。
 
-**跨域报错。**
+### 跨域报错
+
 `/api/*` 和 `/embed.js` 都允许跨域。如果你在反向代理上覆盖了 CORS 头，记得放行。
 
-**弹窗打不开 / 被拦。**
-`CexPay.open()` 是点击事件里同步调用的，不会被弹窗拦截器拦（它用的是 DOM 弹层，不是 `window.open`）。
-如果没反应，看控制台是不是 `embed.js` 404 了——检查网关地址。
+### 弹窗打不开或被拦
 
-**升级网关后接入方要改东西吗？**
+`CexPay.open()` 是点击事件里同步调用的，不会被弹窗拦截器拦（它用的是 DOM 弹层，不是 `window.open`）。
+如果没反应，看控制台是不是 `embed.js` 404 了，检查一下网关地址。
+
+### 升级网关后接入方要改东西吗
+
 不用。前端资源带内容指纹，浏览器会自动拿新版；`/api` 的字段只增不减。
 
-**我不想让接入方看到管理后台。**
+### 不想让接入方看到管理后台
+
 在反向代理上把 `/admin` 和 `/api/admin/` 限制到内网，见
 [security.md](security.md#部署加固清单)。`/api/orders` 和 `/embed.js` 保持公开即可。

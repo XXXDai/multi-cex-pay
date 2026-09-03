@@ -89,7 +89,7 @@ def test_static_assets_are_fingerprinted(client):
 
 
 def test_fingerprint_tracks_file_content(client, data_dir):
-    """指纹是内容哈希，改了文件就必须变——否则开发时要手动清缓存。"""
+    """指纹是内容哈希，改了文件就必须变，否则开发时要手动清缓存。"""
     from pathlib import Path
 
     from cexpay.server import WEB_DIR

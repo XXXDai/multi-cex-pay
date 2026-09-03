@@ -58,7 +58,7 @@
 
   /** 把当前内容高度告诉宿主页面，让弹窗贴合内容（避免大片空白）。
 
-      刻意不用 requestAnimationFrame 做测量：文档处于隐藏或被节流的状态时
+      不用 requestAnimationFrame 做测量：文档处于隐藏或被节流的状态时
       （典型场景是宿主页面在后台标签里打开），rAF 回调根本不会执行，
       高度就永远上报不出去。这里改成同步测量 + ResizeObserver 跟踪后续变化。 */
   let lastHeight = 0;

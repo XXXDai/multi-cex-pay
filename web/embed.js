@@ -4,11 +4,11 @@
  * 接入方式（一行 script）：
  *   <script src="https://你的网关域名/embed.js"></script>
  *
- * 推荐用法 —— 订单在你自己的后端创建，浏览器只拿 order_id：
+ * 推荐用法，订单在你自己的后端创建，浏览器只拿 order_id：
  *   const { order_id } = await fetch('/my-api/create-order', {method:'POST'}).then(r=>r.json());
  *   CexPay.open({ orderId: order_id, onPaid: o => location.href = '/thanks' });
  *
- * 快速试用 —— 直接由浏览器下单（金额来自前端，不可信，仅适合内部工具/演示）：
+ * 快速试用，直接由浏览器下单（金额来自前端，不可信，仅适合内部工具或演示）：
  *   CexPay.open({ amount: '9.9', onPaid: o => console.log('paid', o) });
  *
  * 所有回调：onPaid(order) / onExpired(order) / onClose() / onError(err)
@@ -32,7 +32,7 @@
 
   var STYLE_ID = "cexpay-embed-style";
   var CSS =
-    // 刻意不用 backdrop-filter：低端机上掉帧，而且会让部分浏览器的截图/录屏合成出错。
+    // 不用 backdrop-filter：低端机上掉帧，而且会让部分浏览器的截图和录屏合成出错。
     // 纯色半透明遮罩在所有环境下表现一致。
     ".cexpay-mask{position:fixed;inset:0;z-index:2147483000;background:rgba(15,18,24,.72);" +
     "display:flex;align-items:center;justify-content:center;" +

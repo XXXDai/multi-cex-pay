@@ -4,10 +4,10 @@
 无法真的拿三个 App 去扫，所以把扫码这件事拆成两个可以客观验证的步骤：
 
   第一步 取景：手机举在聚合图前，取景框里到底进来几个码？
-              —— 用一个按真实比例裁出来的窗口模拟，再叠加手持的轻微旋转和
+              用一个按真实比例裁出来的窗口模拟，再叠加手持的轻微旋转和
                  摄像头分辨率下采样，然后真的去解码。
   第二步 归属：解出来的内容，某家 App 会不会认？
-              —— 各所收款码是自家域名的 URL，App 只处理自己的。
+              各所收款码是自家域名的 URL，App 只处理自己的。
                  这一步用域名判定，和 cexpay.qr.detect.guess_brand 同一套规则。
 
 两步都过 = 该 App 扫该格能识别成付款。任何一步不过 = 不识别。
@@ -55,7 +55,7 @@ def simulate_camera_frame(
     center      取景框中心（用户对准哪一格）
     frame_side  取景框在原图上覆盖的边长（越小=举得越近）
     rotation    手持的轻微倾斜（度）
-    sensor_px   摄像头把这块区域采样成多少像素——这一步会丢细节，是真实约束
+    sensor_px   摄像头把这块区域采样成多少像素。这一步会丢细节，是真实约束
     """
     cx, cy = center
     half = frame_side // 2
@@ -140,7 +140,7 @@ def main() -> int:
 
     print(f"\n{BOLD}对照：整张图丢给相册识别{RESET}")
     whole = [h.payload for h in detect_qrcodes(canvas)]
-    print(f"  一次性解出 {len(whole)} 个码 —— App 通常只取其中一个，取哪个不可控。")
+    print(f"  一次性解出 {len(whole)} 个码。App 通常只取其中一个，取哪个不可控。")
     for app in APPS:
         hits = [p for p in whole if app_would_accept(app, p)]
         print(f"  {APP_NAMES[app]:10} 图中有 {len(hits)} 个它认得的码，"

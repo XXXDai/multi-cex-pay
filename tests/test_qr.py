@@ -222,7 +222,7 @@ def test_render_qr_uses_integer_module_size():
     """回归：重绘不能把二维码缩放到任意像素尺寸。
 
     早期实现是"先按 box_size=10 生成、再 resize 到 size"，模块边界会落在像素中间
-    （一部分模块 8px、一部分 9px），解码成功率随尺寸抖动——440/520 正常，
+    （一部分模块 8px、一部分 9px），解码成功率随尺寸抖动：440 和 520 正常，
     偏偏 460 解不出来。现在改成"按整数模块尺寸生成 + 居中补白"。
     """
     import qrcode
@@ -274,7 +274,7 @@ def test_panel_without_payload_falls_back_to_resample():
 @pytest.mark.parametrize("qr_size", [240, 340, 460, 580])
 def test_compose_verifies_every_layout_and_size(layout, qr_size):
     """回归：column 排版会产出很长的画布（如 588x2417），
-    OpenCV 的多码识别在这种画布上跨平台表现不一致——macOS 能解出三个、
+    OpenCV 的多码识别在这种画布上跨平台表现不一致：macOS 能解出三个，
     Linux 漏一个。校验改成逐格裁剪后单独解，才是稳定且贴近真实扫码方式的做法。
     """
     panels = [
@@ -319,10 +319,10 @@ def test_camera_pointed_at_one_panel_frames_only_that_panel(frame_ratio):
 
     这里分两级断言，因为两件事的确定性完全不同：
 
-      几何（强断言）—— 目标格完整落入取景框，邻格不完整落入。这是纯算术，
+      几何（强断言）：目标格完整落入取景框，邻格不完整落入。这是纯算术，
                       跨平台完全确定。**被裁掉一部分的二维码在物理上就解不出来**，
                       所以这一条成立就等于"别家的码不可能被扫到"。
-      解码（弱断言）—— 如果解码器真解出了东西，那必须是目标格的内容。
+      解码（弱断言）：如果解码器真解出了东西，那必须是目标格的内容。
                       不强求目标格一定能解出：合成的取景画面叠加了旋转和
                       下采样，不同 OpenCV 版本的解码能力差异很大（macOS 能解、
                       Linux 解不出是实测过的），而真实手机摄像头远好于这个模拟。
@@ -369,7 +369,7 @@ def test_camera_pointed_at_one_panel_frames_only_that_panel(frame_ratio):
 
 
 def test_camera_simulation_can_decode_the_targeted_panel():
-    """温和条件下（不旋转、采样充足）目标格必须能解出来——
+    """温和条件下（不旋转、采样充足）目标格必须能解出来，
     否则上面那个测试的"解码"部分就是空转，永远不会失败。"""
     payloads = {
         "binance": BINANCE_URL,
