@@ -9,7 +9,7 @@
 [![CI](https://github.com/XXXDai/multi-cex-pay/actions/workflows/ci.yml/badge.svg)](https://github.com/XXXDai/multi-cex-pay/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-178%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-190%20passed-brightgreen.svg)](tests/)
 [![Exchanges](https://img.shields.io/badge/exchanges-Binance%20%7C%20OKX%20%7C%20Bitget-f0b90b.svg)](#支持矩阵)
 
 [快速开始](#快速开始) · [它怎么工作](#它怎么工作) · [聚合收款码](#聚合收款码) · [API](docs/api.md) · [安全](docs/security.md) · [FAQ](docs/faq.md) · [English](README.en.md)
@@ -257,7 +257,7 @@ cexpay tx --minutes 60                    看各所最近进账（排查神器�
 
 ```bash
 .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest -q        # 178 passed
+.venv/bin/python -m pytest -q        # 190 passed
 .venv/bin/ruff check .
 ```
 

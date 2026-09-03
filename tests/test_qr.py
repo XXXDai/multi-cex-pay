@@ -268,3 +268,19 @@ def test_panel_without_payload_falls_back_to_resample():
     """解不出内容时只能重采样，但不能崩。"""
     panel = Panel("binance", image=render_qr(BINANCE_URL, size=400), payload=None)
     assert panel.resolve_image(300).size == (300, 300)
+
+
+@pytest.mark.parametrize("layout", ["row", "column", "grid"])
+@pytest.mark.parametrize("qr_size", [240, 340, 460, 580])
+def test_compose_verifies_every_layout_and_size(layout, qr_size):
+    """回归：column 排版会产出很长的画布（如 588x2417），
+    OpenCV 的多码识别在这种画布上跨平台表现不一致——macOS 能解出三个、
+    Linux 漏一个。校验改成逐格裁剪后单独解，才是稳定且贴近真实扫码方式的做法。
+    """
+    panels = [
+        Panel("binance", payload="https://app.binance.com/uni-qr/DEMO1234"),
+        Panel("okx", payload="https://www.okx.com/pay/receive?uid=100000000000000001"),
+        Panel("bitget", payload=BITGET_URL),
+    ]
+    result = compose(panels, layout=layout, qr_size=qr_size)
+    assert result.all_verified, f"{layout}/{qr_size}: {result.verified} {result.warnings}"

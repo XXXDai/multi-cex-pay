@@ -227,6 +227,8 @@ def compose(
 
     canvas = Image.new("RGB", (canvas_w, canvas_h), background)
     draw = ImageDraw.Draw(canvas)
+    # 记录每格二维码在成图里的确切矩形，回读校验时按格裁出来单独解
+    panel_rects: list[tuple[Panel, tuple[int, int, int, int]]] = []
 
     y_cursor = padding
     if title:
@@ -261,6 +263,7 @@ def compose(
         qr_img = panel.resolve_image(qr_size)
         qr_y = y0 + header_h + 18
         canvas.paste(qr_img, (x0, qr_y))
+        panel_rects.append((panel, (x0, qr_y, x0 + qr_size, qr_y + qr_size)))
         draw.rectangle(
             [x0, qr_y, x0 + qr_size - 1, qr_y + qr_size - 1],
             outline="#E5E7EB",
@@ -288,21 +291,38 @@ def compose(
 
     verified: dict[str, bool] = {}
     if verify:
-        # 告诉识别器该找几个，凑够就不必再跑剩下的预处理
-        found = {hit.payload for hit in detect_qrcodes(canvas, expected=len(panels))}
-        for panel in panels:
-            if panel.payload:
-                ok = panel.payload in found
-                verified[panel.exchange] = ok
-                if not ok:
-                    warnings.append(
-                        f"{panel.exchange} 的二维码在聚合图里回读失败，"
-                        f"建议调大 qr_size 或改用单码模式。"
-                    )
-            else:
+        # 逐格裁出来单独解，而不是把整张大图丢给多码识别器。
+        #
+        # 为什么：OpenCV 的 detectAndDecodeMulti 在超大/超长画布上不可靠——
+        # column 排版下画布能到 588x2417，同一份代码在 macOS 上能解出三个码、
+        # 在 Linux 上就漏一个。而用户实际的扫码方式恰恰是"对准一格去扫"，
+        # 所以按格校验既更稳定，也更贴近真实使用场景。
+        for panel, rect in panel_rects:
+            if not panel.payload:
                 verified[panel.exchange] = False
                 warnings.append(
                     f"{panel.exchange} 的二维码内容未知（原图没解出来），无法回读校验。"
+                )
+                continue
+            cell = canvas.crop(rect)
+            ok = any(hit.payload == panel.payload for hit in detect_qrcodes(cell, expected=1))
+            verified[panel.exchange] = ok
+            if not ok:
+                warnings.append(
+                    f"{panel.exchange} 的二维码在聚合图里回读失败，"
+                    f"建议调大 qr_size 或改用单码模式。"
+                )
+
+        # 再整张扫一遍，纯粹为了如实告知"从相册一次性识别能不能拿到全部"。
+        # 扫不全不代表成图有问题，但确实说明不该引导用户走相册识别。
+        if len(panel_rects) > 1:
+            whole = {hit.payload for hit in detect_qrcodes(canvas, expected=len(panel_rects))}
+            missed = [p.exchange for p, _ in panel_rects if p.payload and p.payload not in whole]
+            if missed:
+                warnings.append(
+                    "整图一次性识别只认出了部分二维码（"
+                    + "、".join(missed)
+                    + " 未被认出）——这正是不能让用户从相册识别的原因，请引导用相机对准单格扫。"
                 )
 
     if len(panels) > 1:

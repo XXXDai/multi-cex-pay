@@ -11,7 +11,7 @@ receive codes · drop in a screenshot and it crops the QR itself
 [![CI](https://github.com/XXXDai/multi-cex-pay/actions/workflows/ci.yml/badge.svg)](https://github.com/XXXDai/multi-cex-pay/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-178%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-190%20passed-brightgreen.svg)](tests/)
 
 [Quick start](#quick-start) · [How it works](#how-it-works) · [Aggregate QR](#the-aggregate-receive-code) · [API](docs/api.md) · [Security](docs/security.md) · [中文](README.md)
 
@@ -223,7 +223,7 @@ such API to individuals), no on-chain collection — for on-chain use something 
 
 ```bash
 .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest -q        # 178 passed
+.venv/bin/python -m pytest -q        # 190 passed
 .venv/bin/ruff check .
 ```
 
