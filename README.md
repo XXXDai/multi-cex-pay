@@ -6,7 +6,7 @@
 [![CI](https://github.com/XXXDai/multi-cex-pay/actions/workflows/ci.yml/badge.svg)](https://github.com/XXXDai/multi-cex-pay/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-254%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-250%20passed-brightgreen.svg)](tests/)
 
 [接入指南](docs/integration.md) · [API](docs/api.md) · [核销原理](docs/matching.md) · [安全](docs/security.md) · [FAQ](docs/faq.md) · [English](README.en.md)
 
@@ -243,7 +243,7 @@ cexpay openapi -o openapi.json            导出 OpenAPI
 
 ```bash
 .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest -q        # 254 passed
+.venv/bin/python -m pytest -q        # 250 passed
 .venv/bin/ruff check .
 ```
 

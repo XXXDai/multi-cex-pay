@@ -20,11 +20,24 @@ INLINE_ANCHOR = re.compile(r'<a\s+id="([^"]+)"', re.I)
 FENCE = re.compile(r"```.*?```", re.S)
 
 
+# 工具生成的目录里也有 .md（比如 .pytest_cache/README.md），
+# 把它们算进来会让收集到的用例数随环境变化：本地跑过 pytest 就多 4 项，
+# 干净的 CI 上没有。参数化的测试集合必须是确定的。
+SKIP_DIRS = {"node_modules", "build", "dist", "site-packages"}
+
+
 def md_files() -> list[Path]:
-    return sorted(
-        p for p in REPO.rglob("*.md")
-        if not {".venv", ".git", "node_modules"} & set(p.parts)
-    )
+    def excluded(path: Path) -> bool:
+        for part in path.relative_to(REPO).parts[:-1]:
+            if part in SKIP_DIRS or part.endswith(".egg-info"):
+                return True
+            # 点开头的目录一律跳过（.venv / .git / .pytest_cache / .ruff_cache …），
+            # .github 例外，那里可能放 issue 模板之类需要检查的文档
+            if part.startswith(".") and part != ".github":
+                return True
+        return False
+
+    return sorted(p for p in REPO.rglob("*.md") if not excluded(p))
 
 
 def slugify(text: str) -> str:

@@ -7,7 +7,7 @@ payment to an order, and calls your webhook once an order settles.
 [![CI](https://github.com/XXXDai/multi-cex-pay/actions/workflows/ci.yml/badge.svg)](https://github.com/XXXDai/multi-cex-pay/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-254%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-250%20passed-brightgreen.svg)](tests/)
 
 [Integration](docs/integration.md) · [API](docs/api.md) · [Matching](docs/matching.md) · [Security](docs/security.md) · [FAQ](docs/faq.md) · [中文](README.md)
 
@@ -295,7 +295,7 @@ alongside this.
 
 ```bash
 .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest -q        # 254 passed
+.venv/bin/python -m pytest -q        # 250 passed
 .venv/bin/ruff check .
 ```
 
