@@ -1,0 +1,51 @@
+# 本地虚拟环境（平台相关，绝不能进镜像）
+.venv
+venv
+env
+
+# 运行时数据与机密：数据库、credentials.json、收款码、日志
+data
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+.env
+.env.*
+!.env.example
+*.log
+aggregate.png
+
+# 版本库与 CI 配置
+.git
+.gitignore
+.github
+
+# 构建镜像时不需要的东西
+tests
+docs
+examples
+sdk
+web/*.map
+
+# Python 缓存与构建产物
+__pycache__
+*.py[cod]
+*.egg-info
+.eggs
+build
+dist
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+
+# 编辑器 / 系统
+.idea
+.vscode
+.claude
+.DS_Store
+
+# 自身
+Dockerfile
+.dockerignore
+docker-compose.yml

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>多交易所聚合支付</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">多交易所聚合支付<small>multi-cex-pay</small></div>
+  <nav>
+    <a href="/admin" class="mini">后台</a>
+    <a href="/docs" class="mini">API</a>
+    <button class="ghost sm" id="themeBtn" title="切换主题">◐</button>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <h2>服务状态</h2>
+    <dl class="kv" id="healthKv" style="margin-top:10px">
+      <dt>加载中…</dt><dd></dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h2>开一笔测试订单</h2>
+    <p class="hint">用来验证收银台链路。真实接入请调用 <code>POST /api/orders</code>。</p>
+    <div class="row" style="margin-top:12px">
+      <div style="min-width:140px">
+        <label>金额</label>
+        <input type="text" id="amount" value="1.00">
+      </div>
+      <div style="min-width:180px">
+        <label>指定渠道（可留空 = 任意）</label>
+        <select id="exchange"><option value="">任意</option></select>
+      </div>
+      <div style="align-self:flex-end">
+        <button class="primary" id="createBtn">创建并打开收银台</button>
+      </div>
+    </div>
+    <div class="msg" id="createMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>聚合收款图</h2>
+    <p class="hint">
+      三家的码拼在一张图上，用户用哪家 App 就扫对应那一格。
+      二维码本身无法跨所通用——这里做的是视觉聚合，不是"万能码"。
+    </p>
+    <div class="agg-preview" style="margin-top:12px">
+      <img src="/api/qr/aggregate.png?layout=row&size=420" alt="聚合收款图"
+           onerror="this.replaceWith(Object.assign(document.createElement('p'),{className:'msg warn',textContent:'还没有配置收款码，先去后台上传截图。'}))">
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const saved = (() => { try { return localStorage.getItem("cexpay-theme"); } catch (e) { return null; } })();
+  if (saved) document.documentElement.dataset.theme = saved;
+  $("themeBtn").onclick = () => {
+    const root = document.documentElement;
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    try { localStorage.setItem("cexpay-theme", root.dataset.theme); } catch (e) {}
+  };
+
+  fetch("/api/health").then((r) => r.json()).then((d) => {
+    $("healthKv").innerHTML =
+      `<dt>版本</dt><dd class="mono">${d.version}</dd>` +
+      `<dt>已配置渠道</dt><dd>${(d.exchanges || []).join("、") || '<span class="faint">无，请先去后台配置</span>'}</dd>` +
+      `<dt>后台轮询</dt><dd>${d.poller ? "运行中" : "已关闭（仅手动核销）"}</dd>`;
+  });
+
+  fetch("/api/exchanges").then((r) => r.json()).then((d) => {
+    const sel = $("exchange");
+    (d.exchanges || []).forEach((e) => {
+      const o = document.createElement("option");
+      o.value = e.name;
+      o.textContent = e.display_name;
+      sel.appendChild(o);
+    });
+  });
+
+  $("createBtn").onclick = async function () {
+    this.disabled = true;
+    const msg = $("createMsg");
+    msg.className = "msg";
+    msg.textContent = "创建中…";
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: $("amount").value.trim(), exchange: $("exchange").value || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "创建失败");
+      location.href = data.checkout_url;
+    } catch (err) {
+      msg.className = "msg err";
+      msg.textContent = err.message;
+      this.disabled = false;
+    }
+  };
+})();
+</script>
+</body>
+</html>

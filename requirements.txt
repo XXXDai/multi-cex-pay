@@ -1,0 +1,16 @@
+# 运行必需
+requests>=2.31.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+python-multipart>=0.0.9
+Pillow>=10.0.0
+numpy>=1.24.0
+qrcode[pil]>=7.4.2
+opencv-python-headless>=4.8.0
+
+# 可选：设置 CEXPAY_MASTER_KEY 后用于加密凭据文件
+# cryptography>=42.0.0
+
+# 可选：OpenCV 识别失败时的备用识别引擎（需要系统装 zbar）
+# pyzbar>=0.1.9

@@ -1,0 +1,56 @@
+# 一条命令跑起来：
+#   cp .env.example .env && docker compose up -d
+#
+# 首次启动后打开 http://127.0.0.1:8787/admin，用 .env 里的 CEXPAY_ADMIN_TOKEN 登录，
+# 配置只读凭据和收款码。
+
+services:
+  cexpay:
+    build: .
+    image: multi-cex-pay:0.1.0
+    container_name: cexpay
+    restart: unless-stopped
+
+    # .env 里放 ADMIN_TOKEN / WEBHOOK_SECRET / MASTER_KEY 和各所凭据（如果不想走后台配置）
+    env_file:
+      - .env
+
+    environment:
+      # 容器内固定用 /data，对应下面的命名卷；不要在 .env 里覆盖它
+      CEXPAY_DATA_DIR: /data
+      # 容器里必须听 0.0.0.0，对外的收口在下面的端口映射上
+      CEXPAY_HOST: 0.0.0.0
+      CEXPAY_PORT: "8787"
+
+    ports:
+      # 刻意绑到 127.0.0.1：容器不直接对公网提供服务。
+      # 要对外请在宿主机上用 Nginx / Caddy 反代并配 TLS，
+      # 顺手把 /admin 和 /api/admin/ 限制到内网、给 /api/orders 加限流。
+      # 见 docs/security.md#部署加固清单
+      - "127.0.0.1:8787:8787"
+
+    volumes:
+      # 订单库、credentials.json、收款码都在这里。删了要重新配。
+      - cexpay-data:/data
+
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8787/api/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+
+    # 只读根文件系统 + 显式可写目录，缩小被入侵后的可动范围。
+    # /data 是命名卷（可写），其余全部只读；额外给出两个 tmpfs：
+    #   /tmp        —— uvicorn / Pillow 的临时文件
+    #   /home/cexpay —— 有些库会往 HOME 里写缓存，读不到写权限会直接抛异常
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/cexpay
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  cexpay-data:

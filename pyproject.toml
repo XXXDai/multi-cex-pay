@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multi-cex-pay"
+version = "0.1.0"
+description = "多交易所聚合支付 — Binance / OKX / Bitget 个人收款自动核销网关"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["binance", "okx", "bitget", "payment", "usdt", "qrcode", "crypto"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial",
+]
+dependencies = [
+    "requests>=2.31.0",
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+    "python-multipart>=0.0.9",
+    "Pillow>=10.0.0",
+    "numpy>=1.24.0",
+    "qrcode[pil]>=7.4.2",
+    "opencv-python-headless>=4.8.0",
+]
+
+[project.optional-dependencies]
+crypto = ["cryptography>=42.0.0"]
+zbar = ["pyzbar>=0.1.9"]
+dev = ["pytest>=8.0.0", "httpx>=0.26.0", "ruff>=0.3.0"]
+
+[project.scripts]
+cexpay = "cexpay.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["cexpay*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = [".venv", "assets"]
+
+# 显式列出规则集，不吃 ruff 的默认值 —— 否则升级 ruff 就可能让 CI 突然变红
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff 自有规则
+]
+ignore = [
+    # FastAPI 的 Depends()/File()/Query() 就是写在默认参数里的，这是框架的用法
+    "B008",
+    # 后台线程和请求处理里刻意用 except Exception 兜底，不能让一个渠道的异常掀翻整个轮询
+    "BLE001",
+    # 本项目的注释、文档字符串和面向用户的文案都是中文，全角标点是正常的，
+    # 这三条规则会把每一个「，」「：」「（」都报成"易混淆字符"
+    "RUF001", "RUF002", "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# 测试里 assert 和长表达式都是正常的
+"tests/*" = ["E501"]
+# 示例代码为了可读性会有些冗余写法
+"examples/*" = ["E501"]

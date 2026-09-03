@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>收银台 · 多交易所聚合支付</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">收银台<small>multi-cex-pay</small></div>
+  <nav><button class="ghost sm" id="themeBtn" title="切换主题">◐</button></nav>
+</header>
+
+<div class="wrap narrow">
+  <div id="loading" class="card"><p class="hint">正在加载订单…</p></div>
+
+  <!-- 待支付 -->
+  <div id="payView" style="display:none">
+    <div class="card">
+      <div class="amount-line"><span id="payAmount">–</span><span class="cur" id="payCurrency">USDT</span></div>
+      <p class="amount-note" id="amountNote">金额必须<strong>一分不差</strong>，小数位是这笔订单的识别码</p>
+      <div class="copy-field" style="margin-top:12px">
+        <input type="text" id="amountCopy" readonly>
+        <button class="sm" id="copyAmount">复制</button>
+      </div>
+      <p class="countdown" id="countdown"></p>
+    </div>
+
+    <div class="card">
+      <h2>选择支付方式</h2>
+      <div class="tabs" id="tabs"></div>
+
+      <div class="qr-box" id="qrBox">
+        <img id="qrImg" alt="收款二维码">
+        <p class="hint" id="payHint" style="text-align:center"></p>
+        <div id="accountLine" class="copy-field" style="display:none">
+          <input type="text" id="accountLabel" readonly>
+          <button class="sm" id="copyAccount">复制</button>
+        </div>
+      </div>
+
+      <p class="hint" id="memoLine" style="display:none"></p>
+
+      <div style="margin-top:16px">
+        <button class="primary" id="checkBtn" style="width:100%">我已支付，立即核对</button>
+      </div>
+      <div class="msg" id="checkMsg"></div>
+
+      <details style="margin-top:14px">
+        <summary class="hint" style="cursor:pointer">付了但没自动到账？点这里补充信息</summary>
+        <div id="identBox">
+          <label id="identLabel">付款方标识</label>
+          <input type="text" id="identInput">
+          <p class="hint" id="identHelp"></p>
+          <button class="sm" id="identBtn" style="margin-top:8px">提交并核对</button>
+          <div class="msg" id="identMsg"></div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- 已支付 -->
+  <div id="doneView" style="display:none">
+    <div class="card status-big">
+      <div class="icon">✅</div>
+      <h3>支付成功</h3>
+      <p class="hint" id="doneDetail"></p>
+    </div>
+  </div>
+
+  <!-- 已过期 / 已取消 -->
+  <div id="deadView" style="display:none">
+    <div class="card status-big">
+      <div class="icon">⌛</div>
+      <h3 id="deadTitle">订单已过期</h3>
+      <p class="hint">请返回商户重新下单。</p>
+    </div>
+  </div>
+</div>
+
+<script src="/static/checkout.js"></script>
+</body>
+</html>

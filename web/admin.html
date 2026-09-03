@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>后台 · 多交易所聚合支付</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">后台<small>multi-cex-pay</small></div>
+  <nav>
+    <a href="/" class="mini">首页</a>
+    <a href="/docs" class="mini">API 文档</a>
+    <button class="ghost sm" id="themeBtn" title="切换主题">◐</button>
+  </nav>
+</header>
+
+<div class="wrap">
+  <!-- 登录 -->
+  <div class="card" id="authCard">
+    <h2>后台令牌</h2>
+    <p class="hint">即 <code>CEXPAY_ADMIN_TOKEN</code> 环境变量的值。只保存在这台浏览器里。</p>
+    <form class="copy-field" id="authForm" style="margin-top:10px" autocomplete="off">
+      <input type="password" id="tokenInput" placeholder="粘贴令牌" autocomplete="current-password">
+      <button class="primary" id="loginBtn" type="submit">进入</button>
+    </form>
+    <div class="msg" id="authMsg"></div>
+  </div>
+
+  <div id="panel" style="display:none">
+    <!-- 1. API 凭据 -->
+    <div class="card">
+      <div class="row">
+        <h2 style="margin:0">1 · 只读 API 凭据</h2>
+        <span class="spacer"></span>
+        <span class="pill" id="encPill"></span>
+        <button class="sm" id="testAllBtn">全部自检</button>
+      </div>
+      <p class="hint">
+        只需要 <strong>读取</strong> 权限：别勾选交易、提币、划转。检测到写权限会直接拒绝启动。
+        建议同时开启 IP 白名单。
+      </p>
+      <div class="grid cols-3" id="credCards" style="margin-top:16px"></div>
+    </div>
+
+    <!-- 2. 收款二维码 -->
+    <div class="card">
+      <h2>2 · 收款二维码</h2>
+      <p class="hint">
+        直接丢交易所 App 的收款页<strong>整张截图</strong>进来：系统会自动定位二维码、
+        透视校正、解出内容后重绘成标准码。不用自己裁图。
+      </p>
+      <div class="grid cols-3" id="qrCards" style="margin-top:16px"></div>
+    </div>
+
+    <!-- 3. 聚合图 -->
+    <div class="card">
+      <h2>3 · 聚合收款图</h2>
+      <p class="hint">
+        把已配置的收款码拼成一张图，可以打印张贴或嵌到自己页面里。
+        生成后会<strong>回读校验</strong>每个码是否仍能被扫出来。
+      </p>
+      <div class="row" style="margin-top:12px">
+        <div style="min-width:120px">
+          <label>排版</label>
+          <select id="layoutSel">
+            <option value="row">横排</option>
+            <option value="grid">网格</option>
+            <option value="column">竖排</option>
+          </select>
+        </div>
+        <div style="min-width:120px">
+          <label>单码尺寸</label>
+          <input type="number" id="sizeInput" value="520" min="200" max="1200" step="20">
+        </div>
+        <div style="min-width:120px">
+          <label>间距比例</label>
+          <input type="number" id="gutterInput" value="0.45" min="0.1" max="2" step="0.05">
+        </div>
+        <div style="flex:1;min-width:180px">
+          <label>标题</label>
+          <input type="text" id="titleInput" value="扫码支付 · 任选一家">
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="primary" id="composeBtn">生成聚合图</button>
+        <a class="mini" id="aggLink" href="/api/qr/aggregate.png" target="_blank">直接打开公开链接 ↗</a>
+      </div>
+      <div class="msg" id="composeMsg"></div>
+      <div class="agg-preview" id="aggPreview" style="margin-top:14px"></div>
+    </div>
+
+    <!-- 4. 订单 -->
+    <div class="card">
+      <div class="row">
+        <h2 style="margin:0">4 · 订单</h2>
+        <span class="spacer"></span>
+        <button class="sm" id="sweepBtn">立即核销一轮</button>
+        <button class="sm" id="reloadOrders">刷新</button>
+      </div>
+      <p class="hint" id="statsLine"></p>
+      <div class="msg" id="orderMsg"></div>
+      <div style="overflow-x:auto;margin-top:10px">
+        <table>
+          <thead><tr>
+            <th>订单号</th><th>金额</th><th>状态</th><th>渠道</th><th>依据</th><th>创建</th><th></th>
+          </tr></thead>
+          <tbody id="orderRows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 5. 最近进账 -->
+    <div class="card">
+      <div class="row">
+        <h2 style="margin:0">5 · 最近进账</h2>
+        <span class="spacer"></span>
+        <select id="txMinutes" style="width:auto">
+          <option value="60">近 1 小时</option>
+          <option value="360">近 6 小时</option>
+          <option value="1440" selected>近 24 小时</option>
+          <option value="10080">近 7 天</option>
+        </select>
+        <button class="sm" id="loadTxBtn">查询</button>
+      </div>
+      <p class="hint">直接看各所 API 返回了什么，排查"钱到了但没核销"时最有用。</p>
+      <div class="msg" id="txMsg"></div>
+      <div style="overflow-x:auto;margin-top:10px">
+        <table>
+          <thead><tr><th>时间</th><th>渠道</th><th>金额</th><th>标识</th><th>流水号</th></tr></thead>
+          <tbody id="txRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/admin.js"></script>
+</body>
+</html>
