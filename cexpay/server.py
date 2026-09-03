@@ -8,9 +8,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
+import re
 import secrets
 from contextlib import asynccontextmanager
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -419,17 +422,36 @@ def create_app(*, start_poller: bool = True) -> FastAPI:
     if WEB_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 
+        @app.get("/embed.js", include_in_schema=False)
+        async def embed_js():
+            """嵌入式收银台脚本。
+
+            放在根路径而不是 /static 下，是为了让接入方的 script 标签尽量短：
+                <script src="https://你的网关/embed.js"></script>
+            允许跨域缓存 —— 它是公开的前端资源，不含任何机密。
+            """
+            return FileResponse(
+                WEB_DIR / "embed.js",
+                media_type="application/javascript",
+                headers={
+                    # 接入方的 <script src> 里没有指纹（URL 要保持短且稳定），
+                    # 所以这里用短缓存 + must-revalidate，靠 ETag 回源校验。
+                    "Cache-Control": "public, max-age=300, must-revalidate",
+                    "Access-Control-Allow-Origin": "*",
+                },
+            )
+
         @app.get("/")
         async def index():
-            return FileResponse(WEB_DIR / "index.html")
+            return _page("index.html")
 
         @app.get("/checkout")
         async def checkout():
-            return FileResponse(WEB_DIR / "checkout.html")
+            return _page("checkout.html")
 
         @app.get("/admin")
         async def admin_page():
-            return FileResponse(WEB_DIR / "admin.html")
+            return _page("admin.html")
 
     return app
 
@@ -437,6 +459,47 @@ def create_app(*, start_poller: bool = True) -> FastAPI:
 # --------------------------------------------------------------------------
 # 辅助
 # --------------------------------------------------------------------------
+_STATIC_ASSET = re.compile(r'(/static/[A-Za-z0-9_.\-]+\.(?:css|js))')
+
+
+@lru_cache(maxsize=64)
+def _asset_fingerprint(rel: str, mtime_ns: int, size: int) -> str:
+    """静态文件的内容指纹。mtime/size 进参数是为了让 lru_cache 在文件变化时自动失效。"""
+    digest = hashlib.sha256((WEB_DIR / rel).read_bytes()).hexdigest()[:10]
+    return f"{__version__}-{digest}"
+
+
+def _page(name: str) -> Response:
+    """返回一个 HTML 页面，并给它引用的静态资源打上内容指纹。
+
+    为什么要这么做：接入方的用户浏览器会缓存 checkout.js / app.css。
+    升级网关之后如果 URL 没变，他们可能几天都还在跑旧前端——
+    这类 bug 极难排查（"我这边明明是好的，你清一下缓存试试"）。
+
+    指纹用的是**文件内容的哈希**而不是包版本号：
+      - 发布时：内容变了指纹就变，缓存自然失效；
+      - 开发时：改一行存盘，刷新就生效，不用手动 bump 版本、也不用硬刷新。
+    HTML 自身走 no-cache，保证总能拿到最新的指纹。
+    """
+    html = (WEB_DIR / name).read_text(encoding="utf-8")
+
+    def stamp(match: re.Match[str]) -> str:
+        url = match.group(1)
+        rel = url[len("/static/"):]
+        path = WEB_DIR / rel
+        if not path.exists():
+            return url
+        stat = path.stat()
+        return f"{url}?v={_asset_fingerprint(rel, stat.st_mtime_ns, stat.st_size)}"
+
+    html = _STATIC_ASSET.sub(stamp, html)
+    return Response(
+        content=html,
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
 def _png_response(image) -> Response:
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")

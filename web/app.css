@@ -205,3 +205,8 @@ tbody tr:hover { background: var(--surface-2); }
   .card { padding: 16px; }
   .amount-line { font-size: 26px; }
 }
+
+/* --- 嵌入模式（被 embed.js 放进 iframe）--- */
+:root[data-embed="1"] header.top { display: none; }
+:root[data-embed="1"] body { background: var(--surface); }
+:root[data-embed="1"] .wrap { padding-top: 20px; padding-bottom: 24px; }

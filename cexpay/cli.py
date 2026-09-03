@@ -333,6 +333,107 @@ def cmd_tx(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------
+# webhook-test：给接入方本地调通验签用
+# --------------------------------------------------------------------------
+def cmd_webhook_test(args: argparse.Namespace) -> int:
+    """往指定 URL 发一条**签名正确**的假回调，让接入方能在本地把验签调通。
+
+    不需要真的收到钱，也不用等交易所——这是接入过程中最费时间的一环。
+    """
+    import time as _time
+    import uuid as _uuid
+
+    from .notify import deliver, sign_payload
+
+    settings = get_settings()
+    secret = args.secret or settings.webhook_secret
+    if not secret:
+        print(
+            f"{YELLOW}没有配置回调密钥。{RESET}\n"
+            f"请设置 CEXPAY_WEBHOOK_SECRET 或用 --secret 传入——"
+            f"否则发出去的请求不带签名，验签这一步就测不到。",
+            file=sys.stderr,
+        )
+        if not args.allow_unsigned:
+            return 2
+
+    order_id = args.order_id or _uuid.uuid4().hex[:20]
+    payload = {
+        "event": "order.paid",
+        "order": {
+            "order_id": order_id,
+            "merchant_ref": args.ref,
+            "exchange": args.exchange,
+            "base_amount": args.amount,
+            "pay_amount": args.amount,
+            "currency": args.currency,
+            "status": "paid",
+            "memo": None,
+            "created_ms": int(_time.time() * 1000) - 60_000,
+            "expires_ms": int(_time.time() * 1000) + 840_000,
+            "expires_in_s": 840,
+            "paid_ms": int(_time.time() * 1000),
+            "metadata": {"webhook_test": True},
+            "settlement": {
+                "exchange": args.exchange,
+                "tx_id": f"TEST-{order_id[:8]}",
+                "tier": 1,
+                "reason": f"金额精确命中 {args.amount}（这是 webhook-test 造的假数据）",
+            },
+        },
+    }
+
+    stamp = int(_time.time())
+    body = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+    print(f"{DIM}POST{RESET} {args.url}")
+    print(f"{DIM}X-CexPay-Timestamp:{RESET} {stamp}")
+    if secret:
+        print(f"{DIM}X-CexPay-Signature:{RESET} {sign_payload(secret, stamp, body)}")
+    print(f"{DIM}被签名的字符串:{RESET} {stamp}.<原始请求体>")
+    if args.verbose:
+        print(f"{DIM}请求体:{RESET}")
+        _print_json(payload)
+
+    ok, detail = deliver(
+        args.url, payload, secret=secret, timeout=args.timeout, timestamp=stamp
+    )
+    print()
+    if ok:
+        print(f"{GREEN}✓ 对方返回 {detail}{RESET} —— 2xx 即视为投递成功，不会重试。")
+        return 0
+
+    print(f"{RED}✗ {detail}{RESET}")
+    print(
+        f"{DIM}排查顺序：\n"
+        f"  1. 验签用的是**原始字节**吗？先 parse 再 stringify 一定对不上\n"
+        f"  2. 两边的 CEXPAY_WEBHOOK_SECRET 是同一个吗？\n"
+        f"  3. 被签名的是 f\"{{timestamp}}.{{raw_body}}\"，别漏掉那个点\n"
+        f"  4. SDK 默认拒绝时间戳偏移超过 300s，服务器时间对得上吗？{RESET}"
+    )
+    print(f"{DIM}真实投递失败会按 0/15s/1m/5m/30m/2h/6h 重试 7 次，"
+          f"所以你的处理必须对 order_id 幂等。{RESET}")
+    return 1
+
+
+# --------------------------------------------------------------------------
+# openapi：导出规格，接入方可以自己生成任意语言的 client
+# --------------------------------------------------------------------------
+def cmd_openapi(args: argparse.Namespace) -> int:
+    from .server import create_app
+
+    spec = create_app(start_poller=False).openapi()
+    text = json.dumps(spec, ensure_ascii=False, indent=2)
+    if args.output:
+        Path(args.output).write_text(text, encoding="utf-8")
+        print(f"{GREEN}✓{RESET} 已写出 {args.output}（{len(spec.get('paths', {}))} 个路由）")
+        print(f"{DIM}可以喂给 openapi-generator / oapi-codegen 生成任意语言的客户端。{RESET}")
+    else:
+        print(text)
+    return 0
+
+
+# --------------------------------------------------------------------------
 # 入口
 # --------------------------------------------------------------------------
 def build_parser() -> argparse.ArgumentParser:
@@ -424,6 +525,30 @@ def build_parser() -> argparse.ArgumentParser:
     p_ol.add_argument("--status")
     p_ol.add_argument("--limit", type=int, default=20)
     p_ol.set_defaults(func=cmd_order_list)
+
+    # webhook-test
+    p_wh = sub.add_parser(
+        "webhook-test",
+        help="给你的回调地址发一条签名正确的假回调（接入调试神器）",
+    )
+    p_wh.add_argument("url", help="你的回调地址，如 http://127.0.0.1:5000/webhook")
+    p_wh.add_argument("--secret", help="回调密钥，默认取 CEXPAY_WEBHOOK_SECRET")
+    p_wh.add_argument("--amount", default="9.9001", help="假订单的金额")
+    p_wh.add_argument("--currency", default="USDT")
+    p_wh.add_argument("--exchange", default="binance",
+                      choices=SUPPORTED_EXCHANGES, help="假装钱从哪家进来")
+    p_wh.add_argument("--order-id", help="指定订单号，默认随机（可用来测幂等）")
+    p_wh.add_argument("--ref", help="商户单号 merchant_ref")
+    p_wh.add_argument("--timeout", type=int, default=10)
+    p_wh.add_argument("-v", "--verbose", action="store_true", help="打印完整请求体")
+    p_wh.add_argument("--allow-unsigned", action="store_true",
+                      help="没有密钥也照发（那样测不到验签）")
+    p_wh.set_defaults(func=cmd_webhook_test)
+
+    # openapi
+    p_oa = sub.add_parser("openapi", help="导出 OpenAPI 规格，用来生成客户端")
+    p_oa.add_argument("-o", "--output", help="写到文件，默认打到标准输出")
+    p_oa.set_defaults(func=cmd_openapi)
 
     # tx
     p_tx = sub.add_parser("tx", help="查看各所最近进账")

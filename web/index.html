@@ -3,41 +3,68 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>多交易所聚合支付</title>
+<title>接入控制台 · 多交易所聚合支付</title>
 <link rel="stylesheet" href="/static/app.css">
+<style>
+  pre{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;
+      padding:14px 16px;overflow-x:auto;font-size:12.5px;line-height:1.65;margin:0}
+  .snip{position:relative;margin-top:10px}
+  .snip button{position:absolute;top:8px;right:8px}
+  .ways{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin:14px 0 4px}
+  .way{padding:12px 14px;border:1.5px solid var(--border);border-radius:11px;cursor:pointer;
+       background:var(--surface-2);text-align:left;font-size:13px}
+  .way.active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+  .way b{display:block;font-size:14px;margin-bottom:3px}
+  .way span{color:var(--text-faint);font-size:12px}
+</style>
 </head>
 <body>
 <header class="top">
-  <div class="brand">多交易所聚合支付<small>multi-cex-pay</small></div>
+  <div class="brand">接入控制台<small>multi-cex-pay</small></div>
   <nav>
     <a href="/admin" class="mini">后台</a>
-    <a href="/docs" class="mini">API</a>
+    <a href="/docs" class="mini">OpenAPI</a>
     <button class="ghost sm" id="themeBtn" title="切换主题">◐</button>
   </nav>
 </header>
 
 <div class="wrap">
   <div class="card">
-    <h2>服务状态</h2>
-    <dl class="kv" id="healthKv" style="margin-top:10px">
-      <dt>加载中…</dt><dd></dd>
-    </dl>
+    <h2>网关状态</h2>
+    <dl class="kv" id="healthKv" style="margin-top:10px"><dt>加载中…</dt><dd></dd></dl>
+    <div class="copy-field" style="margin-top:14px">
+      <input type="text" id="baseUrl" readonly>
+      <button class="sm" data-copy="baseUrl">复制地址</button>
+    </div>
+    <p class="hint">把这个地址给接入方，他们只需要它。</p>
   </div>
 
   <div class="card">
-    <h2>开一笔测试订单</h2>
-    <p class="hint">用来验证收银台链路。真实接入请调用 <code>POST /api/orders</code>。</p>
+    <h2>接入代码</h2>
+    <p class="hint">下面的片段已经填好了本网关的地址，复制即可用。三种接法共用同一套订单逻辑，随时可换。</p>
+    <div class="ways" id="ways"></div>
+    <div class="snip">
+      <pre><code id="snippet"></code></pre>
+      <button class="sm" data-copy="snippet">复制</button>
+    </div>
+    <p class="hint" id="wayNote"></p>
+    <p class="hint">完整说明见 <a href="https://github.com/XXXDai/multi-cex-pay/blob/main/docs/integration.md">接入指南</a>。</p>
+  </div>
+
+  <div class="card">
+    <h2>自测一笔</h2>
+    <p class="hint">验证整条链路是否打通。真实接入请从你自己的后端调 <code>POST /api/orders</code>。</p>
     <div class="row" style="margin-top:12px">
-      <div style="min-width:140px">
-        <label>金额</label>
-        <input type="text" id="amount" value="1.00">
+      <div style="min-width:120px">
+        <label>金额</label><input type="text" id="amount" value="1.00">
       </div>
-      <div style="min-width:180px">
-        <label>指定渠道（可留空 = 任意）</label>
+      <div style="min-width:170px">
+        <label>渠道（留空 = 任意）</label>
         <select id="exchange"><option value="">任意</option></select>
       </div>
-      <div style="align-self:flex-end">
-        <button class="primary" id="createBtn">创建并打开收银台</button>
+      <div style="align-self:flex-end" class="row tight">
+        <button class="primary" id="createBtn">下单并跳转收银台</button>
+        <button id="embedBtn">用弹窗打开</button>
       </div>
     </div>
     <div class="msg" id="createMsg"></div>
@@ -46,8 +73,9 @@
   <div class="card">
     <h2>聚合收款图</h2>
     <p class="hint">
-      三家的码拼在一张图上，用户用哪家 App 就扫对应那一格。
-      二维码本身无法跨所通用——这里做的是视觉聚合，不是"万能码"。
+      三家的码拼成一张，用户用哪家 App 就扫对应那一格。二维码内容是各所专属 URL，
+      <strong>不存在三家通吃的万能码</strong>——这里是视觉聚合。
+      公开链接：<code id="aggUrl">/api/qr/aggregate.png</code>
     </p>
     <div class="agg-preview" style="margin-top:12px">
       <img src="/api/qr/aggregate.png?layout=row&size=420" alt="聚合收款图"
@@ -56,53 +84,179 @@
   </div>
 </div>
 
+<script src="/embed.js"></script>
 <script>
 (function () {
+  "use strict";
   const $ = (id) => document.getElementById(id);
+  const ORIGIN = location.origin;
+
   const saved = (() => { try { return localStorage.getItem("cexpay-theme"); } catch (e) { return null; } })();
   if (saved) document.documentElement.dataset.theme = saved;
   $("themeBtn").onclick = () => {
-    const root = document.documentElement;
-    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
-    try { localStorage.setItem("cexpay-theme", root.dataset.theme); } catch (e) {}
+    const r = document.documentElement;
+    r.dataset.theme = r.dataset.theme === "dark" ? "light" : "dark";
+    try { localStorage.setItem("cexpay-theme", r.dataset.theme); } catch (e) {}
   };
 
+  $("baseUrl").value = ORIGIN;
+  $("aggUrl").textContent = ORIGIN + "/api/qr/aggregate.png";
+
+  document.querySelectorAll("[data-copy]").forEach((btn) => {
+    btn.onclick = async () => {
+      const el = $(btn.dataset.copy);
+      const text = el.value !== undefined ? el.value : el.textContent;
+      try { await navigator.clipboard.writeText(text); }
+      catch (e) {
+        const i = document.createElement("textarea");
+        i.value = text; document.body.appendChild(i); i.select();
+        try { document.execCommand("copy"); } catch (_) {}
+        i.remove();
+      }
+      const old = btn.textContent;
+      btn.textContent = "已复制";
+      setTimeout(() => { btn.textContent = old; }, 1400);
+    };
+  });
+
+  /* ---------- 接入片段 ---------- */
+  const WAYS = [
+    {
+      key: "embed",
+      title: "① 嵌入式弹窗",
+      sub: "一行 script，不碰后端",
+      note: "订单应在你自己的后端创建，浏览器只拿 order_id —— 否则金额可被用户篡改。发货请以 Webhook 为准，onPaid 跑在浏览器里，可以被伪造。",
+      code: () => `<script src="${ORIGIN}/embed.js"><\/script>
+
+<button id="pay">USDT 支付</button>
+<script>
+document.getElementById('pay').onclick = async () => {
+  // 订单在你自己的后端创建，浏览器只拿 order_id
+  const { order_id } = await fetch('/my-api/create-order', { method: 'POST' })
+    .then(r => r.json());
+
+  CexPay.open({
+    orderId: order_id,
+    onPaid: order => location.href = '/thanks?o=' + order.order_id,
+  });
+};
+<\/script>`,
+    },
+    {
+      key: "server",
+      title: "② 服务端 API",
+      sub: "下单 + 收回调",
+      note: "pay_amount 才是要让用户付的金额，不是 amount —— 尾数是这笔订单的指纹。带同一个 merchant_ref 重复下单会返回同一张订单，天然幂等。",
+      code: () => `# 1) 下单
+curl -X POST ${ORIGIN}/api/orders \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+        "amount": "9.9",
+        "merchant_ref": "SHOP-1001",
+        "callback_url": "https://myshop.com/webhook",
+        "metadata": {"user_id": 42}
+      }'
+
+# 返回 order.pay_amount = "9.9001"  ← 让用户付这个数
+#     checkout_url                 ← 跳过去即可
+
+# 2) 本地把验签调通（发一条签名正确的假回调）
+cexpay webhook-test http://127.0.0.1:5000/webhook`,
+    },
+    {
+      key: "raw",
+      title: "③ 纯数据模式",
+      sub: "UI 自己画",
+      note: "适合 Telegram Bot、桌面端、小程序，或者你有自己的设计。cexpay openapi -o openapi.json 可以导出规格生成任意语言的客户端。",
+      code: () => `# 下单
+curl -sX POST ${ORIGIN}/api/orders \\
+     -H 'Content-Type: application/json' -d '{"amount":"9.9"}'
+
+# 二维码 PNG（单码 / 聚合图）
+curl -s '${ORIGIN}/api/orders/<order_id>/qr.png?exchange=binance' -o bn.png
+curl -s '${ORIGIN}/api/orders/<order_id>/qr.png?layout=row'        -o all.png
+
+# 有哪些渠道、每个渠道让用户填什么
+curl -s ${ORIGIN}/api/exchanges
+
+# 查状态（配了 webhook 就不用轮询）
+curl -s ${ORIGIN}/api/orders/<order_id>`,
+    },
+  ];
+
+  let active = "embed";
+  function renderWays() {
+    const host = $("ways");
+    host.innerHTML = "";
+    WAYS.forEach((w) => {
+      const b = document.createElement("button");
+      b.className = "way" + (w.key === active ? " active" : "");
+      b.innerHTML = `<b>${w.title}</b><span>${w.sub}</span>`;
+      b.onclick = () => { active = w.key; renderWays(); };
+      host.appendChild(b);
+    });
+    const way = WAYS.find((w) => w.key === active);
+    $("snippet").textContent = way.code();
+    $("wayNote").textContent = way.note;
+  }
+  renderWays();
+
+  /* ---------- 状态 ---------- */
   fetch("/api/health").then((r) => r.json()).then((d) => {
     $("healthKv").innerHTML =
       `<dt>版本</dt><dd class="mono">${d.version}</dd>` +
-      `<dt>已配置渠道</dt><dd>${(d.exchanges || []).join("、") || '<span class="faint">无，请先去后台配置</span>'}</dd>` +
-      `<dt>后台轮询</dt><dd>${d.poller ? "运行中" : "已关闭（仅手动核销）"}</dd>`;
+      `<dt>已配置渠道</dt><dd>${(d.exchanges || []).join("、") ||
+        '<span class="faint">无，先去<a href="/admin">后台</a>配置</span>'}</dd>` +
+      `<dt>自动核销</dt><dd>${d.poller ? "轮询中" : '<span class="faint">已关闭，只能手动核销</span>'}</dd>`;
   });
 
   fetch("/api/exchanges").then((r) => r.json()).then((d) => {
-    const sel = $("exchange");
     (d.exchanges || []).forEach((e) => {
       const o = document.createElement("option");
-      o.value = e.name;
-      o.textContent = e.display_name;
-      sel.appendChild(o);
+      o.value = e.name; o.textContent = e.display_name;
+      $("exchange").appendChild(o);
     });
   });
 
+  /* ---------- 自测 ---------- */
+  async function createOrder() {
+    const res = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: $("amount").value.trim(),
+        exchange: $("exchange").value || null,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "创建失败");
+    return data;
+  }
+
+  function setMsg(text, kind) {
+    const m = $("createMsg");
+    m.textContent = text || "";
+    m.className = "msg" + (kind ? " " + kind : "");
+  }
+
   $("createBtn").onclick = async function () {
-    this.disabled = true;
-    const msg = $("createMsg");
-    msg.className = "msg";
-    msg.textContent = "创建中…";
+    this.disabled = true; setMsg("创建中…");
+    try { location.href = (await createOrder()).checkout_url; }
+    catch (e) { setMsg(e.message, "err"); this.disabled = false; }
+  };
+
+  $("embedBtn").onclick = async function () {
+    this.disabled = true; setMsg("创建中…");
     try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: $("amount").value.trim(), exchange: $("exchange").value || null }),
+      const data = await createOrder();
+      setMsg(`订单 ${data.order.order_id}，应付 ${data.order.pay_amount} ${data.order.currency}`);
+      CexPay.open({
+        orderId: data.order.order_id,
+        onPaid: (o) => setMsg(`支付成功：${o.pay_amount} ${o.currency} 来自 ${o.settlement.exchange}`, "ok"),
+        onExpired: () => setMsg("订单已过期", "warn"),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "创建失败");
-      location.href = data.checkout_url;
-    } catch (err) {
-      msg.className = "msg err";
-      msg.textContent = err.message;
-      this.disabled = false;
-    }
+    } catch (e) { setMsg(e.message, "err"); }
+    finally { this.disabled = false; }
   };
 })();
 </script>

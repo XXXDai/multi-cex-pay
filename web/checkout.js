@@ -5,6 +5,9 @@
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
   const orderId = params.get("order_id");
+  // 被 embed.js 用 iframe 嵌进别人页面时：隐藏顶栏、状态变化用 postMessage 通知父页
+  const embedded = params.get("embed") === "1";
+  const forcedTheme = params.get("theme");
 
   let order = null;
   let exchanges = [];
@@ -13,8 +16,9 @@
   let tickTimer = null;
 
   /* ---------- 主题 ---------- */
-  const saved = safeGet("cexpay-theme");
+  const saved = forcedTheme || safeGet("cexpay-theme");
   if (saved) document.documentElement.dataset.theme = saved;
+  if (embedded) document.documentElement.dataset.embed = "1";
   $("themeBtn").onclick = () => {
     const root = document.documentElement;
     const next = root.dataset.theme === "dark" ? "light" : "dark";
@@ -34,10 +38,48 @@
     return data;
   }
 
+  /** 嵌入模式下把状态变化告诉宿主页面（embed.js 会校验 origin） */
+  let notified = null;
+  function notifyParent(type, order) {
+    if (!embedded || window.parent === window) return;
+    if (notified === type) return;          // 同一状态只播一次
+    notified = type;
+    try {
+      window.parent.postMessage({ type: `cexpay:${type}`, order: order || null }, "*");
+    } catch (e) { /* 父页跨域拒收就算了 */ }
+  }
+
   function show(view) {
     ["loading", "payView", "doneView", "deadView"].forEach((id) => {
       $(id).style.display = id === view ? "" : "none";
     });
+    reportHeight();
+  }
+
+  /** 把当前内容高度告诉宿主页面，让弹窗贴合内容（避免大片空白）。
+
+      刻意不用 requestAnimationFrame 做测量：文档处于隐藏或被节流的状态时
+      （典型场景是宿主页面在后台标签里打开），rAF 回调根本不会执行，
+      高度就永远上报不出去。这里改成同步测量 + ResizeObserver 跟踪后续变化。 */
+  let lastHeight = 0;
+  function reportHeight() {
+    if (!embedded || window.parent === window) return;
+    const wrap = document.querySelector(".wrap");
+    if (!wrap) return;
+    const h = Math.ceil(wrap.getBoundingClientRect().height) + 40;
+    if (h < 120 || Math.abs(h - lastHeight) < 8) return;   // 还没渲染完 / 抖动都不上报
+    lastHeight = h;
+    try {
+      window.parent.postMessage({ type: "cexpay:height", height: h }, "*");
+    } catch (e) { /* 父页跨域拒收就算了 */ }
+  }
+
+  // 图片加载完、标签切换、文案换行都会改变高度，交给 ResizeObserver 统一跟踪
+  function watchHeight() {
+    if (!embedded || window.parent === window) return;
+    const wrap = document.querySelector(".wrap");
+    if (!wrap || typeof ResizeObserver === "undefined") return;
+    new ResizeObserver(reportHeight).observe(wrap);
   }
 
   function setMsg(el, text, kind) {
@@ -130,6 +172,7 @@
     }
 
     renderIdentifierForm(info);
+    reportHeight();
   }
 
   function renderIdentifierForm(info) {
@@ -155,6 +198,7 @@
 
     if (order.status === "paid") {
       show("doneView");
+      notifyParent("paid", order);
       const s = order.settlement || {};
       $("doneDetail").textContent =
         `${order.pay_amount} ${order.currency} · 来自 ${s.exchange || "-"}` +
@@ -165,6 +209,7 @@
     if (order.status === "expired" || order.status === "cancelled") {
       $("deadTitle").textContent = order.status === "expired" ? "订单已过期" : "订单已取消";
       show("deadView");
+      notifyParent(order.status === "expired" ? "expired" : "close", order);
       stopTimers();
       return;
     }
@@ -269,6 +314,7 @@
       renderOrder();
       renderQR();
       tick();
+      watchHeight();
       tickTimer = setInterval(tick, 1000);
       pollTimer = setInterval(poll, 5000);
     } catch (err) {

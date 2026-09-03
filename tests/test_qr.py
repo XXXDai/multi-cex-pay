@@ -284,3 +284,67 @@ def test_compose_verifies_every_layout_and_size(layout, qr_size):
     ]
     result = compose(panels, layout=layout, qr_size=qr_size)
     assert result.all_verified, f"{layout}/{qr_size}: {result.verified} {result.warnings}"
+
+
+# ---------------------------------------------------------------- 扫码隔离
+def _camera_frame(canvas, center, side, *, rotation=2.5, sensor_px=720):
+    """模拟一次手持取景：裁一块区域、轻微倾斜、再降到摄像头分辨率。"""
+    cx, cy = center
+    half = side // 2
+    pad = int(side * 0.35)
+    region = canvas.crop((cx - half - pad, cy - half - pad, cx + half + pad, cy + half + pad))
+    if rotation:
+        region = region.rotate(rotation, resample=Image.Resampling.BICUBIC, fillcolor="white")
+    w, h = region.size
+    frame = region.crop((w // 2 - half, h // 2 - half, w // 2 + half, h // 2 + half))
+    return frame.resize((sensor_px, sensor_px), Image.Resampling.LANCZOS)
+
+
+@pytest.mark.parametrize("frame_ratio", [1.2, 1.6, 2.0, 2.5])
+def test_camera_pointed_at_one_panel_sees_only_that_panel(frame_ratio):
+    """聚合图的核心承诺：相机对准某一格时，只有那一格的码进得了取景框。
+
+    这决定了"各所 App 只认自己那一格"能不能成立——如果邻格也进框，
+    App 拿到的可能就是别家的链接。1.2~2.5 倍覆盖了正常扫码距离。
+    """
+    payloads = {
+        "binance": BINANCE_URL,
+        "okx": "https://www.okx.com/pay/receive?uid=100000000000000001",
+        "bitget": BITGET_URL,
+    }
+    qr_size = 520
+    panels = [Panel(name, payload=p) for name, p in payloads.items()]
+    result = compose(panels, layout="row", qr_size=qr_size)
+    assert result.all_verified
+
+    # 复算每格位置：横排时格宽=qr_size，间距=qr_size*0.45，左右各 64 padding
+    gutter = int(qr_size * 0.45)
+    canvas = result.image
+    header_h = int(qr_size * 0.15)
+    top = 64 + (canvas.height - 128 - (header_h + qr_size + int(qr_size * 0.10))) // 3
+
+    side = int(qr_size * frame_ratio)
+    for index, (name, payload) in enumerate(payloads.items()):
+        x0 = 64 + index * (qr_size + gutter)
+        center = (x0 + qr_size // 2, top + header_h + 18 + qr_size // 2)
+        frame = _camera_frame(canvas, center, side)
+        found = {h.payload for h in detect_qrcodes(frame)}
+        assert payload in found, f"对准 {name} 却没解出它自己（ratio={frame_ratio}）"
+        others = {p for n, p in payloads.items() if n != name}
+        assert not (found & others), (
+            f"对准 {name} 时误入了别家的码（ratio={frame_ratio}）: {found & others}"
+        )
+
+
+def test_each_exchange_only_claims_its_own_payload():
+    """域名归属判定：各所只认自己的收款链接，不会把别家的当成自家的。"""
+    payloads = {
+        "binance": BINANCE_URL,
+        "okx": "https://www.okx.com/pay/receive?uid=100000000000000001",
+        "bitget": BITGET_URL,
+    }
+    for app in payloads:
+        for owner, payload in payloads.items():
+            assert (guess_brand(payload) == app) is (owner == app), (
+                f"{app} 对 {owner} 的码判定错误"
+            )

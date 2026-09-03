@@ -9,10 +9,10 @@
 [![CI](https://github.com/XXXDai/multi-cex-pay/actions/workflows/ci.yml/badge.svg)](https://github.com/XXXDai/multi-cex-pay/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-190%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-207%20passed-brightgreen.svg)](tests/)
 [![Exchanges](https://img.shields.io/badge/exchanges-Binance%20%7C%20OKX%20%7C%20Bitget-f0b90b.svg)](#支持矩阵)
 
-[快速开始](#快速开始) · [它怎么工作](#它怎么工作) · [聚合收款码](#聚合收款码) · [API](docs/api.md) · [安全](docs/security.md) · [FAQ](docs/faq.md) · [English](README.en.md)
+[三步接入](#三步接入) · [它怎么工作](#它怎么工作) · [聚合收款码](#聚合收款码) · [接入指南](docs/integration.md) · [API](docs/api.md) · [安全](docs/security.md) · [FAQ](docs/faq.md) · [English](README.en.md)
 
 </div>
 
@@ -48,6 +48,17 @@
 > [CONTRIBUTING.md](CONTRIBUTING.md#如何新增一个交易所)。
 
 ---
+
+## 三种接法，挑一种
+
+| 你的情况 | 用哪种 | 改动量 |
+|---|---|---|
+| 有个网页，想加个「USDT 支付」按钮 | 嵌入式弹窗 | 一行 `<script>` |
+| 有后端，想完全控制流程 | 服务端 API + Webhook | 两个接口 |
+| 只要金额和二维码，UI 自己画（Bot / 桌面端 / 小程序） | 纯数据模式 | 一个接口 |
+
+三种共用同一套订单与核销逻辑，随时可换。详见 **[接入指南](docs/integration.md)**。
+网关跑起来后打开 `/` 就是**接入控制台**——里面的代码片段已经填好了你自己的网关地址。
 
 ## 它怎么工作
 
@@ -126,6 +137,8 @@ Bitget 的是 `https://www.bitget.com/pay/receive?...`，各家 App 只认自己
 
 ---
 
+<a id="三步接入"></a>
+
 ## 快速开始
 
 ### 1. 装
@@ -185,24 +198,29 @@ export CEXPAY_WEBHOOK_SECRET=$(openssl rand -hex 24)
 
 ### 5. 接进你的业务
 
-```python
-from cexpay_client import CexPayClient          # sdk/python/cexpay_client.py
+**最省事的一种：一行 script。**
 
-client = CexPayClient("http://127.0.0.1:8787", webhook_secret="...")
-res = client.create_order("9.9", merchant_ref="SHOP-1001",
-                          callback_url="https://myshop.com/webhook")
-redirect_to(res["checkout_url"])
+```html
+<script src="https://你的网关/embed.js"></script>
+<script>
+  CexPay.open({ orderId, onPaid: o => location.href = '/thanks' });
+</script>
 ```
 
-收到回调时先验签，再按 `order_id` 幂等处理：
+弹窗自己处理选交易所、二维码、倒计时、轮询、成功后关闭，高度自适应，手机上自动切单码大图。
 
-```python
-if not client.verify_webhook(raw_body, ts_header, sig_header):
-    return 400
+另外两种接法（服务端 API / 纯数据自己画 UI）见 **[接入指南](docs/integration.md)**——
+按"你是什么情况"分三条路，挑一条看就行。
+
+接回调时先验签，再按 `order_id` 幂等处理。**本地就能把验签调通，不用等真有人付款：**
+
+```bash
+cexpay webhook-test http://127.0.0.1:5000/webhook
 ```
 
-SDK 有 **Python / Node / PHP / Go** 四个版本，都在 [`sdk/`](sdk/)，零第三方依赖。
+SDK 有 **Python / Node / PHP / Go** 四个版本，都在 [`sdk/`](sdk/)，单文件零依赖。
 签名口径由 [`tests/test_sdk_signature.py`](tests/test_sdk_signature.py) 跨语言对齐，改坏了 CI 会红。
+需要别的语言就 `cexpay openapi -o openapi.json` 自己生成。
 
 完整接口见 [docs/api.md](docs/api.md)，可运行示例见 [examples/](examples/)。
 
@@ -219,6 +237,8 @@ cexpay qr compose -o all.png --layout row 生成聚合图（含回读校验）
 cexpay order create 9.9                   开一笔订单
 cexpay order check <order_id>             立刻核销一次
 cexpay tx --minutes 60                    看各所最近进账（排查神器）
+cexpay webhook-test <你的回调地址>          发一条签名正确的假回调，本地调通验签
+cexpay openapi -o openapi.json            导出 OpenAPI，生成任意语言的客户端
 ```
 
 ---
@@ -257,7 +277,7 @@ cexpay tx --minutes 60                    看各所最近进账（排查神器�
 
 ```bash
 .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest -q        # 190 passed
+.venv/bin/python -m pytest -q        # 207 passed
 .venv/bin/ruff check .
 ```
 

@@ -11,7 +11,7 @@ python3 -m venv .venv
 跑测试。**不需要任何交易所凭据**——所有交易所交互在测试里都是假响应体：
 
 ```bash
-.venv/bin/python -m pytest -q          # 190 passed
+.venv/bin/python -m pytest -q          # 207 passed
 .venv/bin/ruff check .
 ```
 

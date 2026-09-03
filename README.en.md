@@ -11,9 +11,9 @@ receive codes · drop in a screenshot and it crops the QR itself
 [![CI](https://github.com/XXXDai/multi-cex-pay/actions/workflows/ci.yml/badge.svg)](https://github.com/XXXDai/multi-cex-pay/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-190%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-207%20passed-brightgreen.svg)](tests/)
 
-[Quick start](#quick-start) · [How it works](#how-it-works) · [Aggregate QR](#the-aggregate-receive-code) · [API](docs/api.md) · [Security](docs/security.md) · [中文](README.md)
+[Quick start](#quick-start) · [How it works](#how-it-works) · [Aggregate QR](#the-aggregate-receive-code) · [Integration](docs/integration.md) · [API](docs/api.md) · [Security](docs/security.md) · [中文](README.md)
 
 </div>
 
@@ -168,6 +168,25 @@ Or with Docker: `cp .env.example .env && docker compose up -d`
 
 ### Integrating
 
+The shortest path is a single script tag — the modal handles exchange selection, the QR,
+the countdown, polling and auto-close:
+
+```html
+<script src="https://your-gateway/embed.js"></script>
+<script>
+  CexPay.open({ orderId, onPaid: o => location.href = '/thanks' });
+</script>
+```
+
+Two other paths (server API + webhook, or raw data with your own UI) are covered in the
+**[integration guide](docs/integration.md)**. You can get webhook verification working
+locally without waiting for a real payment:
+
+```bash
+cexpay webhook-test http://127.0.0.1:5000/webhook
+```
+
+
 ```python
 from cexpay_client import CexPayClient          # sdk/python/cexpay_client.py
 
@@ -223,7 +242,7 @@ such API to individuals), no on-chain collection — for on-chain use something 
 
 ```bash
 .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest -q        # 190 passed
+.venv/bin/python -m pytest -q        # 207 passed
 .venv/bin/ruff check .
 ```
 
